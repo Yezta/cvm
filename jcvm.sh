@@ -75,17 +75,34 @@ jcvm_list_remote() {
         return 1
     fi
     
-    # Parse available versions (simple parsing, would need jq for better parsing)
+    # Parse available versions using jq
     echo ""
     jcvm_echo "$GREEN" "Available JDK Versions:"
-    echo "$response" | grep -o '"available_releases":\[[^]]*\]' | grep -o '[0-9]\+' | sort -rn | while read -r version; do
-        local marker=""
-        # Check if version is LTS
-        if [[ "$version" == "21" || "$version" == "17" || "$version" == "11" || "$version" == "8" ]]; then
-            marker=" ${GREEN}(LTS)${NC}"
-        fi
-        echo -e "  $version$marker"
-    done
+    
+    if command -v jq >/dev/null 2>&1; then
+        # Use jq for proper JSON parsing
+        local available_releases=$(echo "$response" | jq -r '.available_releases[]')
+        local lts_releases=$(echo "$response" | jq -r '.available_lts_releases[]')
+        
+        echo "$available_releases" | sort -rn | while read -r version; do
+            local marker=""
+            # Check if version is LTS
+            if echo "$lts_releases" | grep -q "^${version}$"; then
+                marker=" ${GREEN}(LTS)${NC}"
+            fi
+            echo -e "  $version$marker"
+        done
+    else
+        # Fallback to simple parsing without jq
+        echo "$response" | grep -o '"available_releases":\[[^]]*\]' | grep -o '[0-9]\+' | sort -rn | while read -r version; do
+            local marker=""
+            # Check if version is LTS
+            if [[ "$version" == "21" || "$version" == "17" || "$version" == "11" || "$version" == "8" ]]; then
+                marker=" ${GREEN}(LTS)${NC}"
+            fi
+            echo -e "  $version$marker"
+        done
+    fi
     
     echo ""
     jcvm_echo "$YELLOW" "Usage: jcvm install <version>"
@@ -142,9 +159,14 @@ jcvm_install() {
         download_info=$(wget -qO- "$api_url")
     fi
     
-    # Extract download link for the specific OS and architecture
-    # This is a simplified version - in production, you'd use jq for proper JSON parsing
-    download_url=$(echo "$download_info" | grep -o '"link":"[^"]*"' | head -1 | cut -d'"' -f4)
+    # Extract download link for the specific OS and architecture using jq
+    if command -v jq >/dev/null 2>&1; then
+        download_url=$(echo "$download_info" | jq -r --arg os "$os" --arg arch "$arch" \
+            '.[] | select(.binary.os == $os and .binary.architecture == $arch and .binary.image_type == "jdk") | .binary.package.link' | head -1)
+    else
+        # Fallback to simple grep-based parsing (less reliable)
+        download_url=$(echo "$download_info" | grep -o '"link":"[^"]*"' | head -1 | cut -d'"' -f4)
+    fi
     
     if [[ -z "$download_url" ]]; then
         jcvm_echo "$RED" "Error: Could not find download URL for JDK $version"
