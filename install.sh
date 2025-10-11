@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
-# JCVM Installation Script
+# JCVM - Quick Installation Script
+# Usage: curl -fsSL https://raw.githubusercontent.com/yourusername/jcvm/main/install.sh | bash
 
 set -e
 
-JCVM_DIR="${JCVM_DIR:-$HOME/.jcvm}"
-JCVM_REPO="https://github.com/yourusername/jcvm.git"
+INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
+REPO_URL="${REPO_URL:-https://github.com/yourusername/jcvm.git}"
+TMP_DIR="/tmp/jcvm-install-$$"
 
 # Colors
 RED='\033[0;31m'
@@ -30,89 +32,68 @@ echo_warning() {
     echo -e "${YELLOW}$*${NC}"
 }
 
-# Check if JCVM is already installed
-if [ -d "$JCVM_DIR" ]; then
-    echo_warning "JCVM is already installed at $JCVM_DIR"
-    read -p "Do you want to reinstall? (y/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo_info "Installation cancelled"
-        exit 0
-    fi
-    rm -rf "$JCVM_DIR"
+echo_info "🦀 Installing JCVM (Java Configuration & Version Manager)..."
+echo ""
+
+# Check if Rust is installed
+if ! command -v cargo >/dev/null 2>&1; then
+    echo_warning "Rust is not installed. Installing Rust..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    source "$HOME/.cargo/env"
+    echo_success "✅ Rust installed successfully"
 fi
 
-echo_info "Installing JCVM to $JCVM_DIR..."
+echo_info "Rust version: $(rustc --version)"
+echo ""
 
-# Check if git is available
-if command -v git >/dev/null 2>&1; then
-    echo_info "Cloning JCVM repository..."
-    git clone "$JCVM_REPO" "$JCVM_DIR"
-else
-    echo_info "Git not found, downloading archive..."
-    if command -v curl >/dev/null 2>&1; then
-        curl -L -o /tmp/jcvm.tar.gz "https://github.com/yourusername/jcvm/archive/refs/heads/main.tar.gz"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -O /tmp/jcvm.tar.gz "https://github.com/yourusername/jcvm/archive/refs/heads/main.tar.gz"
-    else
-        echo_error "Error: Neither git, curl, nor wget found. Please install one of them."
-        exit 1
-    fi
-    
-    mkdir -p "$JCVM_DIR"
-    tar -xzf /tmp/jcvm.tar.gz -C "$JCVM_DIR" --strip-components=1
-    rm /tmp/jcvm.tar.gz
-fi
+# Clone repository
+echo_info "Cloning repository..."
+git clone "$REPO_URL" "$TMP_DIR"
+cd "$TMP_DIR"
 
-# Make script executable
-chmod +x "$JCVM_DIR/jcvm.sh"
+# Build in release mode
+echo_info "Building JCVM (this may take a few minutes)..."
+cargo build --release
 
-# Detect shell
-SHELL_PROFILE=""
-if [ -n "$ZSH_VERSION" ] || [ -f "$HOME/.zshrc" ]; then
-    SHELL_PROFILE="$HOME/.zshrc"
-elif [ -n "$BASH_VERSION" ] || [ -f "$HOME/.bashrc" ]; then
-    SHELL_PROFILE="$HOME/.bashrc"
-elif [ -f "$HOME/.bash_profile" ]; then
-    SHELL_PROFILE="$HOME/.bash_profile"
-elif [ -f "$HOME/.profile" ]; then
-    SHELL_PROFILE="$HOME/.profile"
-fi
+# Create install directory
+mkdir -p "$INSTALL_DIR"
 
-if [ -z "$SHELL_PROFILE" ]; then
-    echo_warning "Could not detect shell profile. Please manually add the following to your shell configuration:"
+# Install binary
+echo_info "Installing to $INSTALL_DIR..."
+cp target/release/jcvm "$INSTALL_DIR/jcvm"
+chmod +x "$INSTALL_DIR/jcvm"
+
+# Clean up
+cd "$HOME"
+rm -rf "$TMP_DIR"
+
+echo ""
+echo_success "✅ JCVM installed successfully!"
+echo ""
+
+# Check if in PATH
+if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
+    echo_warning "⚠️  $INSTALL_DIR is not in your PATH"
     echo ""
-    echo "export JCVM_DIR=\"$JCVM_DIR\""
-    echo "[ -s \"\$JCVM_DIR/jcvm.sh\" ] && \\. \"\$JCVM_DIR/jcvm.sh\""
+    echo "Add this to your shell config:"
+    echo ""
+    echo "  # For Bash (~/.bashrc)"
+    echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+    echo ""
+    echo "  # For Zsh (~/.zshrc)"
+    echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+    echo ""
+    echo "  # For Fish (~/.config/fish/config.fish)"
+    echo "  set -gx PATH $INSTALL_DIR \$PATH"
     echo ""
 else
-    # Check if already configured
-    if grep -q "JCVM_DIR" "$SHELL_PROFILE" 2>/dev/null; then
-        echo_warning "JCVM already configured in $SHELL_PROFILE"
-    else
-        echo_info "Adding JCVM to $SHELL_PROFILE..."
-        cat >> "$SHELL_PROFILE" << 'EOF'
-
-# JCVM - Java Configuration & Version Manager
-export JCVM_DIR="$HOME/.jcvm"
-[ -s "$JCVM_DIR/jcvm.sh" ] && \. "$JCVM_DIR/jcvm.sh"
-EOF
-        echo_success "✓ Added JCVM configuration to $SHELL_PROFILE"
-    fi
+    echo_info "✨ $INSTALL_DIR is already in your PATH"
+    echo ""
 fi
 
+echo "Next steps:"
+echo "  1. Run: jcvm shell-init"
+echo "  2. Reload your shell: source ~/.zshrc (or ~/.bashrc)"
+echo "  3. Start using: jcvm list-remote"
 echo ""
-echo_success "✓ JCVM installation complete!"
-echo ""
-echo_info "To start using JCVM, run:"
-echo "  source $SHELL_PROFILE"
-echo ""
-echo_info "Or open a new terminal window."
-echo ""
-echo_info "Quick start:"
-echo "  jcvm list-remote    # See available JDK versions"
-echo "  jcvm install 21     # Install JDK 21"
-echo "  jcvm use 21         # Use JDK 21"
-echo ""
-echo_info "For help, run:"
-echo "  jcvm help"
+echo "For help: jcvm --help"

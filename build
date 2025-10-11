@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+# JCVM Build Script
+
+set -e
+
+echo "🦀 Building JCVM..."
+
+# Check if Rust is installed
+if ! command -v cargo &> /dev/null; then
+    echo "❌ Cargo not found. Please install Rust from https://rustup.rs/"
+    exit 1
+fi
+
+# Build in release mode
+echo "📦 Building release binary..."
+cargo build --release
+
+# Copy to local bin or install location
+if [ -d "$HOME/.local/bin" ]; then
+    echo "📋 Installing to ~/.local/bin/jcvm..."
+    cp target/release/jcvm "$HOME/.local/bin/jcvm"
+    chmod +x "$HOME/.local/bin/jcvm"
+    echo "✅ JCVM installed to ~/.local/bin/jcvm"
+elif [ -w "/usr/local/bin" ]; then
+    echo "📋 Installing to /usr/local/bin/jcvm..."
+    cp target/release/jcvm /usr/local/bin/jcvm
+    chmod +x /usr/local/bin/jcvm
+    echo "✅ JCVM installed to /usr/local/bin/jcvm"
+else
+    echo "⚠️  Cannot install automatically. Please run:"
+    echo "   sudo cp target/release/jcvm /usr/local/bin/jcvm"
+fi
+
+echo ""
+echo "🎉 Build complete!"
+echo ""
+echo "Next steps:"
+echo "  1. Run 'jcvm shell-init' to set up shell integration"
+echo "  2. Reload your shell (source ~/.zshrc or source ~/.bashrc)"
+echo "  3. Start using: jcvm list-remote"

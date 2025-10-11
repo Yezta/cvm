@@ -1,9 +1,33 @@
+# macOS
 .DS_Store
+
+# Editor temporary files
 *.swp
 *.swo
 *~
+
+# IDE
 .idea/
 .vscode/
+
+# JCVM directories
 cache/
 versions/
 alias/
+
+# Rust specific
+/target
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Test artifacts
+*.profraw
+*.profdata
+
+# Documentation build
+/book
+
+# Release artifacts
+/dist
+/releases

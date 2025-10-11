@@ -1,186 +1,313 @@
 # JCVM - Java Configuration & Version Manager
 
-A version manager for JDK, similar to NVM for Node.js. Easily install, manage, and switch between multiple JDK versions.
+**A fast, secure, and modern JDK version manager written in Rust** 🚀
 
-## Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org)
 
-- 🚀 Install multiple JDK versions from various distributions (Eclipse Temurin, Oracle OpenJDK, etc.)
-- 🔄 Seamlessly switch between installed versions
-- 📁 Auto-switch based on `.java-version` file in project directories
-- 🌍 Set global default JDK version
-- 📋 List available and installed versions
-- 🗑️ Uninstall versions you no longer need
-- 🔧 Automatic JAVA_HOME and PATH management
+## ✨ Features
 
-## Installation
+- 🚀 **Fast & Secure**: Built with Rust for maximum performance and safety
+- 🔄 **Easy Version Switching**: Seamlessly switch between multiple JDK versions
+- 📁 **Project-based Configuration**: Auto-switch based on `.java-version` files
+- 🌍 **Global & Local Versions**: Set system-wide defaults and project-specific versions
+- 🔐 **Checksum Verification**: Automatic verification of downloaded JDK packages
+- 📊 **Progress Indicators**: Beautiful progress bars for downloads and installations
+- 🎨 **Rich CLI Experience**: Colored output, interactive prompts, and helpful messages
+- 🐚 **Shell Integration**: Works with Bash, Zsh, Fish, and PowerShell
+- 🔧 **Automatic Management**: Handles JAVA_HOME and PATH automatically
+- 💾 **Smart Caching**: Cache downloads to save bandwidth
 
-### macOS / Linux
+## 📦 Installation
 
-```bash
-curl -o- https://raw.githubusercontent.com/yourusername/jcvm/main/install.sh | bash
-```
+### Using Pre-built Binaries (Recommended)
 
-Or manually:
+Download the latest binary for your platform from the [releases page](https://github.com/yourusername/jcvm/releases).
 
-```bash
-git clone https://github.com/yourusername/jcvm.git ~/.jcvm
-cd ~/.jcvm
-chmod +x jcvm.sh
-```
+### Building from Source
 
-Add to your shell profile (`~/.zshrc`, `~/.bashrc`, or `~/.bash_profile`):
+Requires Rust 1.70 or later. [Install Rust](https://rustup.rs/) if you haven't already.
 
 ```bash
-export JCVM_DIR="$HOME/.jcvm"
-[ -s "$JCVM_DIR/jcvm.sh" ] && \. "$JCVM_DIR/jcvm.sh"
+# Clone the repository
+git clone https://github.com/yourusername/jcvm.git
+cd jcvm
+
+# Build in release mode
+cargo build --release
+
+# Install (optional)
+cargo install --path .
 ```
 
-Reload your shell:
+### Shell Integration
+
+After installing, set up shell integration:
 
 ```bash
-source ~/.zshrc  # or ~/.bashrc
+jcvm shell-init
 ```
 
-## Usage
-
-### List available JDK versions
+This will automatically detect your shell and add the necessary configuration. Then reload your shell:
 
 ```bash
-jcvm list-remote
+# For Bash
+source ~/.bashrc
+
+# For Zsh
+source ~/.zshrc
+
+# For Fish
+source ~/.config/fish/config.fish
+
+# For PowerShell
+. $PROFILE
 ```
 
-### Install a JDK version
+## 🚀 Quick Start
+
+### 1. List Available JDK Versions
 
 ```bash
-jcvm install 21        # Install latest JDK 21
-jcvm install 17.0.10   # Install specific version
-jcvm install 11 --lts  # Install LTS version
+jcvm list-remote           # All versions
+jcvm list-remote --lts     # LTS versions only
 ```
 
-### List installed versions
+### 2. Install a JDK Version
 
 ```bash
-jcvm list
+jcvm install 21            # Install latest JDK 21
+jcvm install 17            # Install latest JDK 17
+jcvm install 11            # Install latest JDK 11
 ```
 
-### Use a specific version
+### 3. Use a JDK Version
 
 ```bash
-jcvm use 21           # Use JDK 21 in current shell
-jcvm use 17           # Switch to JDK 17
+jcvm use 21                # Switch to JDK 21
+jcvm use 17                # Switch to JDK 17
 ```
 
-### Set global default version
-
-```bash
-jcvm alias default 21  # Set JDK 21 as default
-```
-
-### Set local version for a project
+### 4. Set Project-specific Version
 
 ```bash
 cd my-project
-jcvm local 17         # Creates .java-version file
+jcvm local 17              # Creates .java-version file
 ```
 
-When you enter a directory with a `.java-version` file, JCVM will automatically switch to that version.
+Now whenever you `cd` into this directory, JCVM will automatically switch to JDK 17!
 
-### Uninstall a version
+### 5. Import Existing Java Installations
+
+JCVM can detect and import Java installations already on your system:
 
 ```bash
-jcvm uninstall 11
+# Detect existing Java installations
+jcvm detect
+
+# Auto-import all detected installations
+jcvm detect --import
+
+# Import a specific installation
+jcvm import /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
 ```
 
-### Display current version
+**Benefits:**
+
+- Manage all Java versions through JCVM, even those installed outside of it
+- Uninstalling from JCVM only removes the symlink, not the original installation
+- Use the same commands (`use`, `local`, `alias`) for all versions
+
+**Note:** On first run of `jcvm shell-init`, you'll be prompted to automatically import detected installations.
+
+### 6. Set Global Default
 
 ```bash
-jcvm current
-java -version
+jcvm alias default 21      # Set JDK 21 as default
 ```
 
-### Show help
+## 📚 Commands
+
+### Version Management
 
 ```bash
-jcvm help
+jcvm list-remote           # List available JDK versions
+jcvm list-remote --lts     # List only LTS versions
+jcvm install <version>     # Install a JDK version
+jcvm install <version> -f  # Force reinstall
+jcvm uninstall <version>   # Uninstall a JDK version
+jcvm list                  # List installed versions
 ```
 
-## How It Works
+### Detection & Import
 
-JCVM manages multiple JDK installations by:
-
-1. **Installation**: Downloads JDK distributions to `~/.jcvm/versions/`
-2. **Version Switching**: Creates shims that update `JAVA_HOME` and `PATH`
-3. **Auto-switching**: Detects `.java-version` files and switches automatically when changing directories
-4. **Isolation**: Each JDK version is completely isolated
-
-## Supported JDK Distributions
-
-- Eclipse Temurin (Adoptium)
-- Oracle OpenJDK
-- Amazon Corretto
-- Azul Zulu
-- GraalVM
-
-## Configuration
-
-JCVM stores its data in:
-
-- `~/.jcvm/` - Main directory
-- `~/.jcvm/versions/` - Installed JDK versions
-- `~/.jcvm/alias/` - Version aliases
-- `~/.jcvm/config` - Configuration file
-
-## Project-Specific Configuration
-
-Create a `.java-version` file in your project root:
-
-```
-17
+```bash
+jcvm detect                # Detect existing Java installations
+jcvm detect --import       # Auto-import all detected installations
+jcvm import <path>         # Import a specific Java installation
 ```
 
-or with more specificity:
+### Version Switching
 
+```bash
+jcvm use <version>         # Use a specific version
+jcvm current               # Show current version
+jcvm which                 # Show which version would be used
+jcvm local [version]       # Set/show local project version
 ```
-17.0.10
+
+### Aliases
+
+```bash
+jcvm alias                 # List all aliases
+jcvm alias <name> <ver>    # Create an alias
+jcvm alias default 21      # Set default version
 ```
 
-When you `cd` into the directory, JCVM will automatically switch to that version.
+### Utilities
 
-## Comparison with Other Tools
+```bash
+jcvm exec -v 17 mvn clean  # Run command with specific JDK
+jcvm clean                 # Clean download cache
+jcvm clean --all           # Remove all cached files
+jcvm config                # Show configuration
+jcvm shell-init            # Install shell integration
+```
 
-| Feature | JCVM | SDKMAN! | jEnv |
-|---------|------|---------|------|
-| Install JDKs | ✅ | ✅ | ❌ |
-| Auto-switch | ✅ | ✅ | ✅ |
-| Project config | ✅ (.java-version) | ✅ (.sdkmanrc) | ✅ (.java-version) |
-| Lightweight | ✅ | ❌ | ✅ |
-| POSIX compliant | ✅ | ❌ | ❌ |
+## 🏗️ Architecture
 
-## Troubleshooting
+### Project Structure
 
-### Command not found
+```text
+jcvm/
+├── src/
+│   ├── main.rs              # Entry point
+│   ├── cli.rs               # CLI interface and commands
+│   ├── api.rs               # Adoptium API client
+│   ├── config.rs            # Configuration management
+│   ├── detect.rs            # System Java detection & import
+│   ├── download.rs          # Download with progress & verification
+│   ├── install.rs           # Installation & extraction logic
+│   ├── version_manager.rs   # Version switching logic
+│   ├── shell.rs             # Shell integration
+│   ├── models.rs            # Data models
+│   ├── error.rs             # Error types
+│   └── utils.rs             # Utility functions
+├── Cargo.toml               # Dependencies
+└── README.md                # This file
+```
 
-Make sure JCVM is properly loaded in your shell profile and the profile has been sourced.
+### Key Design Decisions
 
-### Permission errors
+1. **Rust for Performance**: Leverages Rust's safety and speed for reliable operations
+2. **Async Operations**: Uses Tokio for concurrent downloads and API requests
+3. **Type Safety**: Strong typing prevents common errors
+4. **Modular Design**: Clear separation of concerns for maintainability
+5. **User Experience First**: Rich CLI with colors, progress bars, and helpful messages
 
-JCVM works in user space and doesn't require sudo. If you get permission errors, check your `~/.jcvm` directory permissions.
+## 🔧 Configuration
 
-### JDK not switching
+JCVM stores its configuration in `~/.jcvm/config.toml` (or platform-specific location).
 
-Run `jcvm current` to see which version is active. Make sure you've sourced your shell profile after installation.
+### Configuration Options
 
-## Contributing
+```toml
+default_distribution = "adoptium"  # JDK distribution
+verify_checksums = true            # Verify download checksums
+cache_downloads = true             # Cache downloaded files
+cache_retention_days = 30          # Days to keep cache
+show_lts_indicator = true          # Show LTS markers
+parallel_downloads = true          # Enable parallel downloads
+```
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### Environment Variables
 
-## License
+- `JCVM_DIR`: Override default JCVM directory (default: `~/.jcvm`)
 
-MIT License - see LICENSE file for details
+## 🔄 Migration from Shell Version
 
-## Credits
+If you're migrating from the shell-based JCVM:
 
-Inspired by:
-- [NVM](https://github.com/nvm-sh/nvm) - Node Version Manager
-- [SDKMAN!](https://sdkman.io/) - The Software Development Kit Manager
-- [jEnv](https://www.jenv.be/) - Java Environment Manager
+1. **Your installed JDKs are compatible**: The Rust version uses the same directory structure
+2. **Aliases are preserved**: All your aliases will continue to work
+3. **`.java-version` files work**: No changes needed to your projects
+
+Simply install the Rust version and run:
+
+```bash
+jcvm list                  # See your existing installations
+jcvm shell-init            # Update shell configuration
+```
+
+## 🛡️ Security Features
+
+- ✅ **Checksum Verification**: All downloads verified with SHA-256
+- ✅ **Safe File Operations**: Rust's ownership prevents common vulnerabilities
+- ✅ **No Arbitrary Code Execution**: Pure installation without running scripts
+- ✅ **Secure HTTPS**: All downloads over encrypted connections
+- ✅ **Input Validation**: All user inputs are validated and sanitized
+
+## 🌟 Improvements Over Shell Version
+
+| Feature | Shell Version | Rust Version |
+|---------|--------------|--------------|
+| Performance | Moderate | **Fast** ⚡ |
+| Progress Indicators | Basic | **Rich & Interactive** |
+| Error Handling | Basic | **Comprehensive** |
+| Checksum Verification | Optional | **Always On** |
+| Parallel Operations | No | **Yes** |
+| Interactive Prompts | Limited | **Full Featured** |
+| Code Safety | Bash scripting | **Rust Type Safety** |
+| Cross-platform | macOS/Linux | **macOS/Linux/Windows** |
+| Binary Size | N/A | **~5MB** |
+| Dependencies | curl/wget/jq | **Self-contained** |
+
+## 🧪 Testing
+
+Run the test suite:
+
+```bash
+cargo test
+```
+
+Run with coverage:
+
+```bash
+cargo tarpaulin --out Html
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with ❤️ using [Rust](https://www.rust-lang.org/)
+- JDK distributions provided by [Eclipse Adoptium](https://adoptium.net/)
+- Inspired by [NVM](https://github.com/nvm-sh/nvm) for Node.js
+
+## 📧 Support
+
+- 📖 [Documentation](https://github.com/yourusername/jcvm/wiki)
+- 🐛 [Issue Tracker](https://github.com/yourusername/jcvm/issues)
+- 💬 [Discussions](https://github.com/yourusername/jcvm/discussions)
+
+---
+
+<div align="center">
+
+**[Website](https://jcvm.dev)** • **[Documentation](https://docs.jcvm.dev)** • **[Changelog](CHANGELOG.md)**
+
+Made with 🦀 by the JCVM team
+
+</div>

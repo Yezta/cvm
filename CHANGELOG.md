@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2025-10-10
 
 ### Added
+
 - Initial release of JCVM (Java Configuration & Version Manager)
 - Install JDK versions from Eclipse Temurin (Adoptium)
 - List available remote JDK versions
@@ -24,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation
 
 ### Features
+
 - ✅ NVM-like command interface
 - ✅ Project-specific version management with `.java-version`
 - ✅ Automatic version switching on directory change
@@ -32,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ✅ Shell integration for bash and zsh
 
 ### Documentation
+
 - Complete README with usage examples
 - Installation guide
 - Contributing guidelines
@@ -39,7 +42,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Rust Rewrite
+
+**Major Rewrite**: Complete rewrite of JCVM from Shell script to Rust for better performance, reliability, and maintainability.
+
+#### New Features
+
+- New Rust-based implementation with Cargo build system
+- Modular architecture with separate modules:
+  - `api.rs` - API client for JDK distribution sources
+  - `cli.rs` - Command-line interface and argument parsing
+  - `config.rs` - Configuration management
+  - `detect.rs` - Automatic version detection
+  - `download.rs` - Download functionality
+  - `error.rs` - Error handling
+  - `install.rs` - Installation logic
+  - `models.rs` - Data models
+  - `shell.rs` - Shell integration
+  - `utils.rs` - Utility functions
+  - `version_manager.rs` - Core version management
+- New test shell integration script (`test-shell-integration.sh`)
+- Cargo configuration (`Cargo.toml`)
+- Project configuration file (`config.toml`)
+- GitHub Copilot instructions (`.github/copilot-instructions.md`)
+
+#### Files Removed
+
+- Legacy shell script implementation (`jcvm.sh`)
+- Redundant documentation files:
+  - `ARCHITECTURE.md`
+  - `FAQ.md`
+  - `GET_STARTED.md`
+  - `PROJECT_SUMMARY.md`
+  - `QUICKSTART.md`
+  - `examples/README.md`
+- Legacy test scripts (`test.sh`, `show-structure.sh`)
+
+#### Files Modified
+
+- Updated `.gitignore` for Rust project structure
+- Enhanced `README.md` with Rust-specific information
+- Updated `TESTING.md` for Rust testing approach
+- Improved `install.sh` for Rust binary installation
+
+#### Technical Improvements
+
+- Better error handling with Rust's type system
+- Improved performance with compiled binary
+- Enhanced code maintainability and testability
+- Type-safe configuration and API interactions
+- Cross-platform compatibility improvements
+
 ### Planned
+
 - Support for additional JDK distributions (Oracle, Corretto, Azul Zulu, GraalVM)
 - Windows support
 - Integration with build tools (Maven, Gradle)

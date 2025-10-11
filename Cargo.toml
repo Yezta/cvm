@@ -1,0 +1,74 @@
+[package]
+name = "jcvm"
+version = "2.0.0"
+edition = "2021"
+authors = ["JCVM Contributors"]
+description = "Java Configuration & Version Manager - A fast, secure JDK version manager"
+license = "MIT"
+repository = "https://github.com/yourusername/jcvm"
+keywords = ["java", "jdk", "version-manager", "development-tools"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+# CLI
+clap = { version = "4.5", features = ["derive", "cargo", "env"] }
+colored = "2.1"
+
+# Async runtime
+tokio = { version = "1.39", features = ["full"] }
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# File system and archive handling
+tar = "0.4"
+flate2 = "1.0"
+zip = "2.1"
+
+# Path and directory utilities
+directories = "5.0"
+walkdir = "2.5"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Progress bars and indicators
+indicatif = "0.17"
+
+# Checksums
+sha2 = "0.10"
+
+# Interactive prompts
+dialoguer = "0.11"
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Home directory
+dirs = "5.0"
+
+# Async utilities
+futures-util = "0.3"
+
+# Shell expansion
+shellexpand = "3.1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tempfile = "3.10"
+mockito = "1.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
