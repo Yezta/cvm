@@ -1,7 +1,8 @@
+use crate::core::traits::{Architecture, ArchiveType, Platform, ToolDistribution, ToolVersion};
 use crate::error::{JcvmError, Result};
-use crate::models::{Architecture, JdkDistribution, Platform, Version};
 use reqwest::Client;
 use serde::Deserialize;
+use std::collections::HashMap;
 
 const ADOPTIUM_API_BASE: &str = "https://api.adoptium.net/v3";
 
@@ -88,10 +89,10 @@ impl AdoptiumApi {
     /// Find download information for a specific version
     pub async fn find_distribution(
         &self,
-        version: &Version,
+        version: &ToolVersion,
         platform: Platform,
         arch: Architecture,
-    ) -> Result<JdkDistribution> {
+    ) -> Result<ToolDistribution> {
         let url = format!(
             "{}/assets/latest/{}/hotspot",
             ADOPTIUM_API_BASE, version.major
@@ -109,42 +110,68 @@ impl AdoptiumApi {
 
         let assets: Vec<AdoptiumAsset> = response.json().await?;
 
+        // Convert our types to Adoptium's naming convention
+        let os_name = Self::platform_to_adoptium_os(platform);
+        let arch_name = Self::arch_to_adoptium_arch(arch);
+
+        // Find matching asset
         let asset = assets
             .into_iter()
             .find(|a| {
-                a.binary.os == platform.as_str()
-                    && a.binary.architecture == arch.as_str()
+                a.binary.os == os_name
+                    && a.binary.architecture == arch_name
                     && a.binary.image_type == "jdk"
             })
-            .ok_or_else(|| JcvmError::VersionNotFound(version.to_string()))?;
+            .ok_or_else(|| JcvmError::UnsupportedPlatform {
+                os: platform.to_string(),
+                arch: arch.to_string(),
+            })?;
 
-        Ok(JdkDistribution {
+        // Determine archive type from URL
+        let archive_type = if asset.binary.package.link.ends_with(".tar.gz") {
+            ArchiveType::TarGz
+        } else if asset.binary.package.link.ends_with(".zip") {
+            ArchiveType::Zip
+        } else if asset.binary.package.link.ends_with(".dmg") {
+            ArchiveType::Dmg
+        } else if asset.binary.package.link.ends_with(".exe") {
+            ArchiveType::Exe
+        } else {
+            ArchiveType::Other("unknown".to_string())
+        };
+
+        Ok(ToolDistribution {
+            tool_id: "java".to_string(),
             version: version.clone(),
             platform,
             architecture: arch,
             download_url: asset.binary.package.link,
             checksum: asset.binary.package.checksum,
             size: asset.binary.package.size,
+            archive_type,
+            metadata: HashMap::new(),
         })
+    }
+
+    fn platform_to_adoptium_os(platform: Platform) -> String {
+        match platform {
+            Platform::Mac => "mac".to_string(),
+            Platform::Linux => "linux".to_string(),
+            Platform::Windows => "windows".to_string(),
+        }
+    }
+
+    fn arch_to_adoptium_arch(arch: Architecture) -> String {
+        match arch {
+            Architecture::X64 => "x64".to_string(),
+            Architecture::Aarch64 => "aarch64".to_string(),
+            _ => "x64".to_string(),
+        }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_list_available_versions() {
-        let api = AdoptiumApi::new();
-        let versions = api.list_available_versions().await.unwrap();
-        assert!(!versions.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_list_lts_versions() {
-        let api = AdoptiumApi::new();
-        let lts_versions = api.list_lts_versions().await.unwrap();
-        assert!(lts_versions.contains(&21));
-        assert!(lts_versions.contains(&17));
+impl Default for AdoptiumApi {
+    fn default() -> Self {
+        Self::new()
     }
 }

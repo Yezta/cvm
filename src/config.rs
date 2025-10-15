@@ -7,16 +7,16 @@ use std::path::PathBuf;
 pub struct Config {
     #[serde(skip)]
     pub jcvm_dir: PathBuf,
-    
+
     #[serde(skip)]
     pub versions_dir: PathBuf,
-    
+
     #[serde(skip)]
     pub alias_dir: PathBuf,
-    
+
     #[serde(skip)]
     pub cache_dir: PathBuf,
-    
+
     #[serde(skip)]
     pub config_file: PathBuf,
 
@@ -42,7 +42,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         let jcvm_dir = Self::default_jcvm_dir();
-        
+
         Self {
             versions_dir: jcvm_dir.join("versions"),
             alias_dir: jcvm_dir.join("alias"),
@@ -88,7 +88,7 @@ impl Config {
         if config.config_file.exists() {
             let contents = std::fs::read_to_string(&config.config_file)?;
             let file_config: Config = toml::from_str(&contents)?;
-            
+
             // Merge file config with defaults (only certain fields)
             config.default_distribution = file_config.default_distribution;
             config.verify_checksums = file_config.verify_checksums;
@@ -105,23 +105,114 @@ impl Config {
     }
 
     pub fn save(&self) -> Result<()> {
-        let contents = toml::to_string_pretty(self)
-            .map_err(|e| JcvmError::ConfigError(e.to_string()))?;
-        
+        let contents =
+            toml::to_string_pretty(self).map_err(|e| JcvmError::ConfigError(e.to_string()))?;
+
         std::fs::write(&self.config_file, contents)?;
         Ok(())
     }
 
     pub fn get_version_dir(&self, version: &str) -> PathBuf {
-        self.versions_dir.join(version)
+        match self.tool_version_dir("java", version) {
+            Ok(path) => {
+                if path.exists() {
+                    path
+                } else {
+                    let legacy = self.versions_dir.join(version);
+                    if legacy.exists() {
+                        legacy
+                    } else {
+                        path
+                    }
+                }
+            }
+            Err(_) => self.versions_dir.join(version),
+        }
     }
 
     pub fn get_alias_path(&self, alias: &str) -> PathBuf {
-        self.alias_dir.join(alias)
+        match self.tool_alias_path("java", alias) {
+            Ok(path) => {
+                if path.exists() {
+                    path
+                } else {
+                    let legacy = self.alias_dir.join(alias);
+                    if legacy.exists() {
+                        legacy
+                    } else {
+                        path
+                    }
+                }
+            }
+            Err(_) => self.alias_dir.join(alias),
+        }
     }
 
     pub fn current_version_symlink(&self) -> PathBuf {
-        self.alias_dir.join("current")
+        match self.tool_current_symlink("java") {
+            Ok(path) => {
+                if path.exists() {
+                    path
+                } else {
+                    let legacy = self.alias_dir.join("current");
+                    if legacy.exists() {
+                        legacy
+                    } else {
+                        path
+                    }
+                }
+            }
+            Err(_) => self.alias_dir.join("current"),
+        }
+    }
+
+    pub fn tool_versions_dir(&self, tool_id: &str) -> PathBuf {
+        self.tool_versions_dir_result(tool_id)
+            .unwrap_or_else(|_| self.versions_dir.join(tool_id))
+    }
+
+    pub fn tool_cache_dir(&self, tool_id: &str) -> PathBuf {
+        self.tool_cache_dir_result(tool_id)
+            .unwrap_or_else(|_| self.cache_dir.join(tool_id))
+    }
+
+    pub fn tool_alias_dir(&self, tool_id: &str) -> PathBuf {
+        self.tool_alias_dir_result(tool_id)
+            .unwrap_or_else(|_| self.alias_dir.join(tool_id))
+    }
+
+    pub fn tool_version_dir(&self, tool_id: &str, version: &str) -> Result<PathBuf> {
+        Ok(self.tool_versions_dir_result(tool_id)?.join(version))
+    }
+
+    pub fn tool_alias_path(&self, tool_id: &str, alias: &str) -> Result<PathBuf> {
+        Ok(self.tool_alias_dir_result(tool_id)?.join(alias))
+    }
+
+    pub fn tool_current_symlink(&self, tool_id: &str) -> Result<PathBuf> {
+        self.tool_alias_path(tool_id, "current")
+    }
+
+    pub fn tool_default_symlink(&self, tool_id: &str) -> Result<PathBuf> {
+        self.tool_alias_path(tool_id, "default")
+    }
+
+    fn tool_versions_dir_result(&self, tool_id: &str) -> Result<PathBuf> {
+        let dir = self.versions_dir.join(tool_id);
+        std::fs::create_dir_all(&dir)?;
+        Ok(dir)
+    }
+
+    fn tool_cache_dir_result(&self, tool_id: &str) -> Result<PathBuf> {
+        let dir = self.cache_dir.join(tool_id);
+        std::fs::create_dir_all(&dir)?;
+        Ok(dir)
+    }
+
+    fn tool_alias_dir_result(&self, tool_id: &str) -> Result<PathBuf> {
+        let dir = self.alias_dir.join(tool_id);
+        std::fs::create_dir_all(&dir)?;
+        Ok(dir)
     }
 }
 

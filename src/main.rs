@@ -1,12 +1,15 @@
 mod api;
 mod cli;
 mod config;
+mod core;
 mod detect;
 mod download;
 mod error;
 mod install;
 mod models;
+mod plugins;
 mod shell;
+mod tool_manager;
 mod utils;
 mod version_manager;
 
@@ -27,6 +30,6 @@ async fn main() -> Result<()> {
     let config = Config::load().map_err(|e| anyhow::anyhow!(e))?;
 
     // Parse CLI arguments and execute
-    let cli = Cli::new(config);
+    let cli = Cli::new(config)?;
     cli.run().await.map_err(|e| anyhow::anyhow!(e))
 }

@@ -9,10 +9,7 @@ pub enum JcvmError {
     VersionAlreadyInstalled(String, String),
 
     #[error("Failed to download from {url}: {source}")]
-    DownloadFailed {
-        url: String,
-        source: reqwest::Error,
-    },
+    DownloadFailed { url: String, source: reqwest::Error },
 
     #[error("Checksum verification failed for {file}")]
     ChecksumMismatch { file: String },
@@ -35,6 +32,18 @@ pub enum JcvmError {
     #[error("Invalid JDK structure: {0}")]
     InvalidJdkStructure(String),
 
+    #[error("Plugin error in '{plugin}': {message}")]
+    PluginError { plugin: String, message: String },
+
+    #[error("Plugin '{0}' not found")]
+    PluginNotFound(String),
+
+    #[error("Tool '{0}' not found")]
+    ToolNotFound(String),
+
+    #[error("Invalid tool structure for '{tool}': {message}")]
+    InvalidToolStructure { tool: String, message: String },
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
@@ -46,6 +55,9 @@ pub enum JcvmError {
 
     #[error("HTTP request error: {0}")]
     RequestError(#[from] reqwest::Error),
+
+    #[error("Zip error: {0}")]
+    ZipError(#[from] zip::result::ZipError),
 }
 
 pub type Result<T> = std::result::Result<T, JcvmError>;

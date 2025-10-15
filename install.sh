@@ -91,9 +91,18 @@ else
     echo ""
 fi
 
+# Detect and import existing installations automatically
+echo_info "🔍 Detecting existing tool installations..."
+if "$INSTALL_DIR/jcvm" detect --import 2>/dev/null; then
+    echo_success "✅ Auto-detection complete"
+else
+    echo_warning "⚠️  Auto-detection skipped (run 'jcvm detect --import' manually later)"
+fi
+echo ""
+
 echo "Next steps:"
 echo "  1. Run: jcvm shell-init"
 echo "  2. Reload your shell: source ~/.zshrc (or ~/.bashrc)"
-echo "  3. Start using: jcvm list-remote"
+echo "  3. Check imported tools: jcvm list --all"
 echo ""
 echo "For help: jcvm --help"

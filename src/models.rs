@@ -12,6 +12,66 @@ pub struct Version {
 }
 
 impl Version {
+    /// Create a version with a major component only
+    pub fn new(major: u32) -> Self {
+        Self {
+            major,
+            minor: None,
+            patch: None,
+            build: None,
+        }
+    }
+
+    /// Create a version with explicit minor component
+    pub fn with_minor(major: u32, minor: u32) -> Self {
+        let mut version = Self::new(major);
+        version.minor = Some(minor);
+        version
+    }
+
+    /// Create a version with explicit minor and patch components
+    pub fn with_patch(major: u32, minor: u32, patch: u32) -> Self {
+        let mut version = Self::with_minor(major, minor);
+        version.patch = Some(patch);
+        version
+    }
+
+    /// Attach build metadata to the version
+    pub fn with_build<T: Into<String>>(mut self, build: T) -> Self {
+        let build = build.into();
+        if build.is_empty() {
+            self.build = None;
+        } else {
+            self.build = Some(build);
+        }
+        self
+    }
+
+    /// Check if this version description matches a concrete version
+    pub fn matches(&self, other: &Self) -> bool {
+        if self.major != other.major {
+            return false;
+        }
+        if let Some(minor) = self.minor {
+            if other.minor != Some(minor) {
+                return false;
+            }
+        }
+        if let Some(patch) = self.patch {
+            if other.patch != Some(patch) {
+                return false;
+            }
+        }
+        if let Some(build) = &self.build {
+            return other
+                .build
+                .as_deref()
+                .map(|candidate| candidate == build)
+                .unwrap_or(false);
+        }
+        true
+    }
+
     pub fn is_lts(&self) -> bool {
         matches!(self.major, 8 | 11 | 17 | 21)
     }
@@ -37,21 +97,29 @@ impl FromStr for Version {
     type Err = crate::error::JcvmError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.split('.').collect();
-        
+        let trimmed = s.trim();
+        let (version_part, build_part) = match trimmed.split_once('+') {
+            Some((version, build)) => (version, Some(build.trim().to_string())),
+            None => (trimmed, None),
+        };
+
+        let parts: Vec<&str> = version_part.split('.').collect();
+
         let major = parts
             .get(0)
-            .and_then(|p| p.parse::<u32>().ok())
+            .and_then(|p| p.trim().parse::<u32>().ok())
             .ok_or_else(|| crate::error::JcvmError::InvalidVersion(s.to_string()))?;
 
-        let minor = parts.get(1).and_then(|p| p.parse::<u32>().ok());
-        let patch = parts.get(2).and_then(|p| p.parse::<u32>().ok());
+        let minor = parts.get(1).and_then(|p| p.trim().parse::<u32>().ok());
+        let patch = parts.get(2).and_then(|p| p.trim().parse::<u32>().ok());
+
+        let build = build_part.filter(|b| !b.is_empty());
 
         Ok(Version {
             major,
             minor,
             patch,
-            build: None,
+            build,
         })
     }
 }
@@ -161,15 +229,27 @@ mod tests {
         assert_eq!(v.major, 17);
         assert_eq!(v.minor, Some(0));
         assert_eq!(v.patch, Some(10));
+
+        let v = "17.0.2+8".parse::<Version>().unwrap();
+        assert_eq!(v.major, 17);
+        assert_eq!(v.minor, Some(0));
+        assert_eq!(v.patch, Some(2));
+        assert_eq!(v.build.as_deref(), Some("8"));
     }
 
     #[test]
     fn test_version_matching() {
         let v1 = Version::new(21);
         let v2 = Version::with_patch(21, 0, 1);
-        
+
         assert!(v1.matches(&v2));
         assert!(!v2.matches(&v1));
+
+        let build_specific = Version::with_patch(21, 0, 1).with_build("10");
+        let with_build = Version::new(21).with_build("10");
+        assert!(Version::new(21).matches(&build_specific));
+        assert!(with_build.matches(&build_specific));
+        assert!(!build_specific.matches(&with_build));
     }
 
     #[test]

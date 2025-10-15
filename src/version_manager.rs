@@ -62,7 +62,7 @@ impl VersionManager {
         }
 
         let target = std::fs::read_link(&current_link)?;
-        
+
         // Extract version number from path
         // Path could be either:
         // - .../versions/21/bin -> version is "21"
@@ -84,7 +84,7 @@ impl VersionManager {
                     None
                 }
             });
-        
+
         Ok(version)
     }
 
@@ -138,7 +138,7 @@ impl VersionManager {
         }
 
         let target = std::fs::read_link(&alias_path)?;
-        
+
         // Extract version number from path (same logic as get_current)
         let version = target
             .components()
@@ -157,7 +157,7 @@ impl VersionManager {
                     None
                 }
             });
-        
+
         Ok(version)
     }
 
@@ -200,6 +200,7 @@ mod tests {
     #[test]
     fn test_read_write_local_version() {
         let temp_dir = TempDir::new().unwrap();
+        let original_dir = std::env::current_dir().unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
 
         let version = Version::new(21);
@@ -207,5 +208,7 @@ mod tests {
 
         let read_version = VersionManager::read_local_version().unwrap();
         assert_eq!(read_version, Some(version));
+
+        std::env::set_current_dir(original_dir).unwrap();
     }
 }

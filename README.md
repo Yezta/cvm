@@ -1,6 +1,6 @@
-# JCVM - Java Configuration & Version Manager
+# JCVM - Universal Development Tool Version Manager
 
-**A fast, secure, and modern JDK version manager written in Rust** 🚀
+**A fast, secure, and modern version manager for Java, Node.js, Python, and more - written in Rust** 🚀
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org)
@@ -8,14 +8,16 @@
 ## ✨ Features
 
 - 🚀 **Fast & Secure**: Built with Rust for maximum performance and safety
-- 🔄 **Easy Version Switching**: Seamlessly switch between multiple JDK versions
-- 📁 **Project-based Configuration**: Auto-switch based on `.java-version` files
+- 🔧 **Multi-Tool Support**: Manage Java, Node.js, Python, and more from a single tool
+- 🔄 **Easy Version Switching**: Seamlessly switch between multiple versions of any tool
+- 🎯 **Fuzzy Version Matching**: Use `jcvm use --tool python 3.13` to match `3.13.7` automatically
+- 📁 **Project-based Configuration**: Auto-switch based on `.java-version`, `.node-version`, `.python-version` files
 - 🌍 **Global & Local Versions**: Set system-wide defaults and project-specific versions
-- 🔐 **Checksum Verification**: Automatic verification of downloaded JDK packages
+- 🔐 **Checksum Verification**: Automatic verification of downloaded packages
 - 📊 **Progress Indicators**: Beautiful progress bars for downloads and installations
 - 🎨 **Rich CLI Experience**: Colored output, interactive prompts, and helpful messages
 - 🐚 **Shell Integration**: Works with Bash, Zsh, Fish, and PowerShell
-- 🔧 **Automatic Management**: Handles JAVA_HOME and PATH automatically
+- 🔌 **Extensible Plugin System**: Add support for new tools via plugins
 - 💾 **Smart Caching**: Cache downloads to save bandwidth
 
 ## 📦 Installation
@@ -66,36 +68,78 @@ source ~/.config/fish/config.fish
 
 ## 🚀 Quick Start
 
-### 1. List Available JDK Versions
+### 1. List Available Versions
 
 ```bash
-jcvm list-remote           # All versions
-jcvm list-remote --lts     # LTS versions only
+# Java (default tool for backward compatibility)
+jcvm list-remote           # All Java versions
+jcvm list-remote --lts     # Java LTS versions only
+
+# Node.js
+jcvm list-remote --tool node       # All Node.js versions
+jcvm list-remote --tool node --lts # Node.js LTS versions
+
+# Python
+jcvm list-remote --tool python     # All Python versions
 ```
 
-### 2. Install a JDK Version
+### 2. Install a Tool Version
 
 ```bash
-jcvm install 21            # Install latest JDK 21
-jcvm install 17            # Install latest JDK 17
-jcvm install 11            # Install latest JDK 11
+# Java
+jcvm install 21                    # Install latest JDK 21 (default tool)
+jcvm install --tool java 17        # Explicit Java installation
+
+# Node.js
+jcvm install --tool node 20.10.0   # Install Node.js 20.10.0
+jcvm install --tool node 18        # Install latest Node.js 18.x
+
+# Python
+jcvm install --tool python 3.12    # Install Python 3.12
 ```
 
-### 3. Use a JDK Version
+### 3. Use a Tool Version
 
 ```bash
-jcvm use 21                # Switch to JDK 21
-jcvm use 17                # Switch to JDK 17
+# Java
+jcvm use 21                        # Switch to JDK 21 (default tool)
+jcvm use --tool java 17            # Explicit Java switch
+
+# Node.js
+jcvm use --tool node 20.10.0       # Switch to Node.js 20.10.0
+
+# Python
+jcvm use --tool python 3.12        # Switch to Python 3.12
+```
+
+**💡 Fuzzy Version Matching**: You don't need to specify the full version!
+
+```bash
+# These work automatically (matches highest installed patch version):
+jcvm use --tool python 3.13        # Matches 3.13.7
+jcvm use --tool node 22            # Matches 22.19.0
+jcvm use --tool java 21            # Matches 21.0.7
+
+# Exact versions still work:
+jcvm use --tool python 3.10.10     # Matches exactly 3.10.10
 ```
 
 ### 4. Set Project-specific Version
 
 ```bash
 cd my-project
-jcvm local 17              # Creates .java-version file
+
+# Java
+jcvm local 17                      # Creates .java-version file
+
+# Node.js
+jcvm local --tool node 20.10.0     # Creates .node-version file
+
+# Python
+jcvm local --tool python 3.12      # Creates .python-version file
 ```
 
-Now whenever you `cd` into this directory, JCVM will automatically switch to JDK 17!
+Now whenever you `cd` into this directory, JCVM will automatically switch to the configured versions!
 
 ### 5. Import Existing Java Installations
 
@@ -131,15 +175,27 @@ jcvm alias default 21      # Set JDK 21 as default
 ### Version Management
 
 ```bash
-jcvm list-remote           # List available JDK versions
-jcvm list-remote --lts     # List only LTS versions
-jcvm install <version>     # Install a JDK version
-jcvm install <version> -f  # Force reinstall
-jcvm uninstall <version>   # Uninstall a JDK version
-jcvm list                  # List installed versions
+# List available versions
+jcvm list-remote                      # List Java versions (default)
+jcvm list-remote --tool node --lts    # List Node.js LTS versions
+jcvm list-remote --tool python        # List Python versions
+
+# Install versions
+jcvm install 21                       # Install JDK 21 (default tool)
+jcvm install --tool node 20.10.0      # Install Node.js 20.10.0
+jcvm install --tool python 3.12 -f    # Force reinstall Python 3.12
+
+# Uninstall versions
+jcvm uninstall 21                     # Uninstall JDK 21 (default tool)
+jcvm uninstall --tool node 20.10.0    # Uninstall Node.js 20.10.0
+
+# List installed versions
+jcvm list                             # List Java versions (default)
+jcvm list --tool node                 # List Node.js versions
+jcvm list --all                       # List all tool versions
 ```
 
-### Detection & Import
+### Detection & Import (Java only)
 
 ```bash
 jcvm detect                # Detect existing Java installations
@@ -150,18 +206,34 @@ jcvm import <path>         # Import a specific Java installation
 ### Version Switching
 
 ```bash
-jcvm use <version>         # Use a specific version
-jcvm current               # Show current version
-jcvm which                 # Show which version would be used
-jcvm local [version]       # Set/show local project version
+# Activate a version
+jcvm use 21                           # Use JDK 21 (default tool)
+jcvm use --tool node 20.10.0          # Use Node.js 20.10.0
+jcvm use --tool python 3.12           # Use Python 3.12
+
+# Check current version
+jcvm current                          # Show current Java version
+jcvm current --tool node              # Show current Node.js version
+jcvm current --all                    # Show all active versions
+
+# Show which version would be used
+jcvm which                            # Show effective version path
+
+# Set project-local version
+jcvm local 17                         # Set local Java version
+jcvm local --tool node 20.10.0        # Set local Node.js version
 ```
 
 ### Aliases
 
 ```bash
-jcvm alias                 # List all aliases
-jcvm alias <name> <ver>    # Create an alias
-jcvm alias default 21      # Set default version
+# List aliases
+jcvm alias                            # List Java aliases (default)
+jcvm alias --tool node                # List Node.js aliases
+
+# Create/show aliases
+jcvm alias default 21                 # Set Java default alias
+jcvm alias --tool node lts 20.10.0    # Set Node.js lts alias
 ```
 
 ### Utilities

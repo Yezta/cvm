@@ -44,7 +44,11 @@ impl Installer {
         );
 
         // Determine cache file name
-        let url_path = distribution.download_url.split('/').last().unwrap_or("jdk.tar.gz");
+        let url_path = distribution
+            .download_url
+            .split('/')
+            .last()
+            .unwrap_or("jdk.tar.gz");
         let cache_file = self.config.cache_dir.join(url_path);
 
         // Download if not cached
@@ -154,12 +158,9 @@ impl Installer {
         for entry in archive.entries()? {
             let mut entry = entry?;
             let path = entry.path()?;
-            
+
             // Strip the first component (the root directory)
-            let stripped_path: PathBuf = path
-                .components()
-                .skip(1)
-                .collect();
+            let stripped_path: PathBuf = path.components().skip(1).collect();
 
             if !stripped_path.as_os_str().is_empty() {
                 let dest_path = dest_dir.join(&stripped_path);
@@ -173,13 +174,14 @@ impl Installer {
     /// Extract zip archive
     fn extract_zip(&self, archive_path: &Path, dest_dir: &Path) -> Result<()> {
         let file = File::open(archive_path)?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| JcvmError::ExtractionFailed(e.to_string()))?;
+        let mut archive =
+            zip::ZipArchive::new(file).map_err(|e| JcvmError::ExtractionFailed(e.to_string()))?;
 
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i)
+            let mut file = archive
+                .by_index(i)
                 .map_err(|e| JcvmError::ExtractionFailed(e.to_string()))?;
-            
+
             let outpath = match file.enclosed_name() {
                 Some(path) => dest_dir.join(path),
                 None => continue,
@@ -225,7 +227,7 @@ impl Installer {
         for entry in std::fs::read_dir(&self.config.alias_dir)? {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.is_symlink() {
                 if let Ok(target) = std::fs::read_link(&path) {
                     if target == version_dir {
@@ -235,11 +237,7 @@ impl Installer {
             }
         }
 
-        println!(
-            "{} JDK {} uninstalled",
-            "✓".green().bold(),
-            version.cyan()
-        );
+        println!("{} JDK {} uninstalled", "✓".green().bold(), version.cyan());
 
         Ok(())
     }

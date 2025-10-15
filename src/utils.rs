@@ -31,7 +31,7 @@ pub fn format_size(bytes: u64) -> String {
 
 pub fn confirm(prompt: &str) -> bool {
     use dialoguer::Confirm;
-    
+
     Confirm::new()
         .with_prompt(prompt)
         .default(false)

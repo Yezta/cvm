@@ -64,7 +64,10 @@ impl Shell {
                 r#"
 # JCVM - Java Configuration & Version Manager
 export JCVM_DIR="{}"
-export PATH="$JCVM_DIR/alias/current/bin:$PATH"
+
+# Add tool-specific bin directories to PATH
+# Priority order: python, node, java (current is legacy java)
+export PATH="$JCVM_DIR/alias/python/current/bin:$JCVM_DIR/alias/node/current/bin:$JCVM_DIR/alias/current/bin:$PATH"
 export JAVA_HOME="$JCVM_DIR/alias/current"
 
 # Wrapper function for jcvm use to update current shell environment
@@ -85,7 +88,10 @@ jcvm() {{
             # If successful, update the current shell environment
             if [ $exit_code -eq 0 ]; then
                 export JAVA_HOME="$JCVM_DIR/alias/current"
-                export PATH="$JCVM_DIR/alias/current/bin:${{PATH#$JAVA_HOME/bin:}}"
+                # Rebuild PATH with all tool paths
+                # Remove old JCVM paths first
+                local cleaned_path=$(echo "$PATH" | tr ':' '\n' | grep -v "$JCVM_DIR" | tr '\n' ':' | sed 's/:$//')
+                export PATH="$JCVM_DIR/alias/python/current/bin:$JCVM_DIR/alias/node/current/bin:$JCVM_DIR/alias/current/bin:$cleaned_path"
             fi
             
             return $exit_code
@@ -243,9 +249,9 @@ Invoke-JcvmAutoSwitch
     }
 
     pub fn install_hook(&self, config: &Config) -> Result<()> {
-        let config_file = self
-            .config_file()
-            .ok_or_else(|| JcvmError::ShellError("Could not determine shell config file".to_string()))?;
+        let config_file = self.config_file().ok_or_else(|| {
+            JcvmError::ShellError("Could not determine shell config file".to_string())
+        })?;
 
         // Check if already installed
         if config_file.exists() {

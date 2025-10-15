@@ -163,10 +163,10 @@ impl JavaDetector {
                 let java_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if !java_path.is_empty() {
                     let java_path = PathBuf::from(java_path);
-                    
+
                     // Resolve symlinks
                     let real_path = std::fs::canonicalize(&java_path).unwrap_or(java_path);
-                    
+
                     // Navigate up to find JAVA_HOME (java -> bin -> home)
                     if let Some(bin_dir) = real_path.parent() {
                         if let Some(java_home) = bin_dir.parent() {
@@ -190,14 +190,14 @@ impl JavaDetector {
         // List all versions
         if let Ok(output) = Command::new("/usr/libexec/java_home").arg("-V").output() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            
+
             for line in stderr.lines() {
                 // Parse lines like: "    21.0.1 (x86_64) "Java SE 21.0.1" - "/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home""
                 if let Some(path_start) = line.rfind('"') {
                     if let Some(path_end) = line[..path_start].rfind('"') {
                         let path = &line[path_end + 1..path_start];
                         let java_home = PathBuf::from(path);
-                        
+
                         if let Some(java) = self.verify_java_home(&java_home)? {
                             detected.push(java);
                         }
@@ -227,10 +227,10 @@ impl JavaDetector {
         if let Ok(output) = output {
             if output.status.success() {
                 let version_info = String::from_utf8_lossy(&output.stderr);
-                
+
                 if let Some(version) = self.parse_version_from_output(&version_info) {
                     let source = self.detect_source(path, &version_info);
-                    
+
                     return Ok(Some(DetectedJava {
                         path: path.to_path_buf(),
                         version,
@@ -252,7 +252,7 @@ impl JavaDetector {
                 if let Some(start) = line.find('"') {
                     if let Some(end) = line[start + 1..].find('"') {
                         let version_str = &line[start + 1..start + 1 + end];
-                        
+
                         // Handle legacy 1.8.x format
                         let version_str = if version_str.starts_with("1.8") {
                             "8"
@@ -262,12 +262,12 @@ impl JavaDetector {
 
                         // Extract major.minor.patch
                         let parts: Vec<&str> = version_str.split(['.', '_', '-']).collect();
-                        
+
                         if let Some(major_str) = parts.get(0) {
                             if let Ok(major) = major_str.parse::<u32>() {
                                 let minor = parts.get(1).and_then(|s| s.parse::<u32>().ok());
                                 let patch = parts.get(2).and_then(|s| s.parse::<u32>().ok());
-                                
+
                                 return Some(Version {
                                     major,
                                     minor,
@@ -334,7 +334,7 @@ mod tests {
     #[test]
     fn test_parse_version() {
         let detector = JavaDetector::new(Config::default());
-        
+
         let output1 = r#"openjdk version "21.0.1" 2023-10-17"#;
         let version = detector.parse_version_from_output(output1);
         assert!(version.is_some());
@@ -349,7 +349,7 @@ mod tests {
     #[test]
     fn test_detect_source() {
         let detector = JavaDetector::new(Config::default());
-        
+
         let path = PathBuf::from("/Library/Java/JavaVirtualMachines/temurin-21.jdk");
         let source = detector.detect_source(&path, "Temurin");
         assert_eq!(source, "adoptium");
