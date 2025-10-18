@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["JCVM Contributors"]
 description = "Java Configuration & Version Manager - A fast, secure JDK version manager"
 license = "MIT"
-repository = "https://github.com/yourusername/jcvm"
+repository = "https://github.com/Yezta/cvm"
 keywords = ["java", "jdk", "version-manager", "development-tools"]
 categories = ["command-line-utilities", "development-tools"]
 

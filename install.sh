@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 # JCVM - Quick Installation Script
-# Usage: curl -fsSL https://raw.githubusercontent.com/yourusername/jcvm/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/install.sh | bash
 
 set -e
 
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
-REPO_URL="${REPO_URL:-https://github.com/yourusername/jcvm.git}"
+REPO_URL="${REPO_URL:-https://github.com/Yezta/cvm.git}"
 TMP_DIR="/tmp/jcvm-install-$$"
 
 # Colors

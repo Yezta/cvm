@@ -24,7 +24,7 @@
 
 ### Using Pre-built Binaries (Recommended)
 
-Download the latest binary for your platform from the [releases page](https://github.com/yourusername/jcvm/releases).
+Download the latest binary for your platform from the [releases page](https://github.com/Yezta/cvm/releases).
 
 ### Building from Source
 
@@ -32,7 +32,7 @@ Requires Rust 1.70 or later. [Install Rust](https://rustup.rs/) if you haven't a
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/jcvm.git
+git clone https://github.com/Yezta/cvm.git
 cd jcvm
 
 # Build in release mode
@@ -370,9 +370,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Support
 
-- 📖 [Documentation](https://github.com/yourusername/jcvm/wiki)
-- 🐛 [Issue Tracker](https://github.com/yourusername/jcvm/issues)
-- 💬 [Discussions](https://github.com/yourusername/jcvm/discussions)
+- 📖 [Documentation](https://github.com/Yezta/cvm)
+- 📚 [Complete Documentation](docs/)
+  - [Architecture Guide](docs/ARCHITECTURE.md)
+  - [Plugin Development](docs/PLUGIN_DEVELOPMENT.md)
+  - [Version Management](docs/VERSION_MANAGEMENT.md)
+  - [Release Process](docs/RELEASE.md)
+  - [Testing Guide](docs/TESTING.md)
+  - [Roadmap](docs/ROADMAP.md)
+- 🐛 [Issue Tracker](https://github.com/Yezta/cvm/issues)
+- 💬 [Discussions](https://github.com/Yezta/cvm/discussions)
 
 ---
 
