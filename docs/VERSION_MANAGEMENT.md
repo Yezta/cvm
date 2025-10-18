@@ -15,7 +15,7 @@ This document explains the automated version management system for JCVM, which f
 
 JCVM follows **Semantic Versioning 2.0.0** (SemVer):
 
-```
+```txt
 MAJOR.MINOR.PATCH
 ```
 
@@ -24,6 +24,7 @@ MAJOR.MINOR.PATCH
 - **PATCH**: Incremented for backward-compatible bug fixes
 
 Examples:
+
 - `1.0.0` → `1.0.1` (patch: bug fix)
 - `1.0.1` → `1.1.0` (minor: new feature)
 - `1.1.0` → `2.0.0` (major: breaking change)
@@ -37,6 +38,7 @@ Every commit pushed to the `main` branch automatically triggers a **patch versio
 **Workflow:** `.github/workflows/version-bump.yml`
 
 **Process:**
+
 1. Detects new commits on `main` branch
 2. Reads current version from `VERSION` file
 3. Increments the patch number (e.g., `1.0.0` → `1.0.1`)
@@ -49,6 +51,7 @@ Every commit pushed to the `main` branch automatically triggers a **patch versio
 6. Pushes changes and tag back to the repository
 
 **Exclusions:** The workflow ignores commits that only modify:
+
 - `VERSION`
 - `Cargo.toml`/`Cargo.lock`
 - `CHANGELOG.md`
@@ -58,7 +61,8 @@ Every commit pushed to the `main` branch automatically triggers a **patch versio
 
 **Commit Message Convention:**
 Version bump commits are marked with `[skip ci]` to prevent infinite loops:
-```
+
+```txt
 chore: bump version to 1.0.1 [skip ci]
 ```
 
@@ -71,6 +75,7 @@ For **major** or **minor** version bumps, use the manual GitHub Actions workflow
 **Workflow:** `.github/workflows/manual-version-bump.yml`
 
 **Steps:**
+
 1. Go to GitHub Actions tab in your repository
 2. Select "Manual Version Bump" workflow
 3. Click "Run workflow"
@@ -82,6 +87,7 @@ For **major** or **minor** version bumps, use the manual GitHub Actions workflow
 6. Click "Run workflow"
 
 **What It Does:**
+
 - Updates `VERSION`, `Cargo.toml`, and `Cargo.lock`
 - Updates `CHANGELOG.md` with appropriate section:
   - Major → "Breaking Changes"
@@ -93,6 +99,7 @@ For **major** or **minor** version bumps, use the manual GitHub Actions workflow
 ### When to Use Each Bump Type
 
 **Major Version Bump (`major`):**
+
 - Breaking API changes
 - Removing deprecated features
 - Incompatible changes to command-line interface
@@ -100,12 +107,14 @@ For **major** or **minor** version bumps, use the manual GitHub Actions workflow
 - Changes that require user action
 
 Examples:
+
 ```bash
 # Changed CLI command structure
 jcvm use <version>  →  jcvm version use <version>  # Breaking!
 ```
 
 **Minor Version Bump (`minor`):**
+
 - New features (backward-compatible)
 - New command-line options
 - New plugin support
@@ -113,6 +122,7 @@ jcvm use <version>  →  jcvm version use <version>  # Breaking!
 - New tool support (e.g., adding Python support)
 
 Examples:
+
 ```bash
 # Added new command
 jcvm cache clean  # New feature!
@@ -122,6 +132,7 @@ jcvm install --verify-checksum  # New option!
 ```
 
 **Patch Version Bump (`patch`):**
+
 - Bug fixes
 - Documentation updates
 - Performance improvements (minor)
@@ -129,6 +140,7 @@ jcvm install --verify-checksum  # New option!
 - Security patches
 
 Examples:
+
 ```bash
 # Fixed bug in version detection
 # Fixed download retry logic
@@ -153,6 +165,7 @@ For local development and testing, use the provided script:
 ```
 
 **Interactive Process:**
+
 1. Shows current version
 2. Shows what the new version will be
 3. Asks for confirmation
@@ -163,6 +176,7 @@ For local development and testing, use the provided script:
 8. Optionally creates and pushes tag
 
 **What It Updates:**
+
 - `VERSION` file
 - `Cargo.toml` version field
 - `Cargo.lock` (via `cargo update`)
@@ -173,17 +187,20 @@ For local development and testing, use the provided script:
 If you need to update versions manually:
 
 1. **Update VERSION file:**
+
    ```bash
    echo "1.2.3" > VERSION
    ```
 
 2. **Update Cargo.toml:**
+
    ```toml
    [package]
    version = "1.2.3"
    ```
 
 3. **Update Cargo.lock:**
+
    ```bash
    cargo update -p jcvm
    ```
@@ -192,6 +209,7 @@ If you need to update versions manually:
    Add entry following the existing format.
 
 5. **Commit and tag:**
+
    ```bash
    git add VERSION Cargo.toml Cargo.lock CHANGELOG.md
    git commit -m "chore: bump version to 1.2.3"
@@ -238,6 +256,7 @@ The `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/) forma
 ### Automated Updates
 
 The version bump workflows automatically:
+
 - Extract commit messages since last tag
 - Format them as bullet points with commit hashes
 - Place them under appropriate section based on bump type:
@@ -343,16 +362,19 @@ git commit -m "test: add integration tests for auto-switch"
 For urgent bug fixes in production:
 
 1. **Create hotfix branch from tag:**
+
    ```bash
    git checkout -b hotfix/critical-bug v1.2.3
    ```
 
 2. **Fix and test:**
+
    ```bash
    git commit -m "fix: critical security issue"
    ```
 
 3. **Merge to main:**
+
    ```bash
    git checkout main
    git merge hotfix/critical-bug
@@ -366,11 +388,13 @@ For urgent bug fixes in production:
 If version conflicts occur:
 
 1. **Pull latest changes:**
+
    ```bash
    git pull origin main
    ```
 
 2. **Check current version:**
+
    ```bash
    cat VERSION
    ```
