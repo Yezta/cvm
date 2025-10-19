@@ -27,7 +27,7 @@ impl Shell {
         // Check for PowerShell on Windows
         #[cfg(windows)]
         {
-            return Some(Shell::PowerShell);
+            Some(Shell::PowerShell)
         }
 
         #[cfg(not(windows))]
