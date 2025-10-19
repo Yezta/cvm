@@ -101,7 +101,8 @@ impl ToolProvider for NodeJsPlugin {
 
         let parts: Vec<&str> = resolved.split('.').collect();
 
-        let major = parts.first()
+        let major = parts
+            .first()
             .and_then(|s| s.parse::<u32>().ok())
             .ok_or_else(|| crate::error::JcvmError::InvalidVersion(version_str.to_string()))?;
 

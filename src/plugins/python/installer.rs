@@ -305,9 +305,7 @@ impl ToolInstaller for PythonInstaller {
 
         println!(
             "Installing Python {} for {}-{}",
-            version_str,
-            distribution.platform,
-            distribution.architecture
+            version_str, distribution.platform, distribution.architecture
         );
 
         // Determine cache file name

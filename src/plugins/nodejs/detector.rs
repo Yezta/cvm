@@ -265,12 +265,14 @@ impl crate::core::traits::ToolDetector for NodeJsDetector {
         let version_str = detected.version.to_string();
 
         if dest_dir.exists()
-            && dest_dir.is_symlink() && std::fs::read_link(dest_dir)? == detected.path {
-                return Err(JcvmError::VersionAlreadyInstalled(
-                    version_str,
-                    dest_dir.display().to_string(),
-                ));
-            }
+            && dest_dir.is_symlink()
+            && std::fs::read_link(dest_dir)? == detected.path
+        {
+            return Err(JcvmError::VersionAlreadyInstalled(
+                version_str,
+                dest_dir.display().to_string(),
+            ));
+        }
 
         println!(
             "{} Node.js {} from {}",

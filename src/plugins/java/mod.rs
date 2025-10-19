@@ -94,7 +94,8 @@ impl ToolProvider for JavaPlugin {
         // Parse versions like "21", "17.0.10", "11.0.22+7"
         let parts: Vec<&str> = version_str.split(&['.', '+'][..]).collect();
 
-        let major = parts.first()
+        let major = parts
+            .first()
             .and_then(|p| p.parse::<u32>().ok())
             .ok_or_else(|| crate::error::JcvmError::InvalidVersion(version_str.to_string()))?;
 

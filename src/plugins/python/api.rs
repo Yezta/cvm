@@ -504,13 +504,14 @@ impl PythonApi {
 
     /// Fetches checksum from python.org checksum files (tries SHA256 first, then MD5)
     async fn fetch_pythonorg_checksum(&self, download_url: &str, version: &str) -> Result<String> {
-        let filename = download_url
-            .split('/')
-            .next_back()
-            .ok_or_else(|| JcvmError::PluginError {
-                plugin: "python".to_string(),
-                message: "Invalid download URL".to_string(),
-            })?;
+        let filename =
+            download_url
+                .split('/')
+                .next_back()
+                .ok_or_else(|| JcvmError::PluginError {
+                    plugin: "python".to_string(),
+                    message: "Invalid download URL".to_string(),
+                })?;
 
         // Python.org provides both SHA256SUMS and MD5SUMS files
         // Try SHA256 first (more secure), fall back to MD5

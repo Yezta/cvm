@@ -51,12 +51,14 @@ impl JavaDetector {
 
         // Check if already managed by JCVM
         if version_dir.exists()
-            && version_dir.is_symlink() && std::fs::read_link(&version_dir)? == detected.path {
-                return Err(JcvmError::VersionAlreadyInstalled(
-                    version_str,
-                    version_dir.display().to_string(),
-                ));
-            }
+            && version_dir.is_symlink()
+            && std::fs::read_link(&version_dir)? == detected.path
+        {
+            return Err(JcvmError::VersionAlreadyInstalled(
+                version_str,
+                version_dir.display().to_string(),
+            ));
+        }
 
         println!(
             "{} JDK {} from {}",

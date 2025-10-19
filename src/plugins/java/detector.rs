@@ -224,12 +224,14 @@ impl crate::core::traits::ToolDetector for JavaDetector {
 
         // Check if already managed
         if dest_dir.exists()
-            && dest_dir.is_symlink() && std::fs::read_link(dest_dir)? == detected.path {
-                return Err(JcvmError::VersionAlreadyInstalled(
-                    version_str,
-                    dest_dir.display().to_string(),
-                ));
-            }
+            && dest_dir.is_symlink()
+            && std::fs::read_link(dest_dir)? == detected.path
+        {
+            return Err(JcvmError::VersionAlreadyInstalled(
+                version_str,
+                dest_dir.display().to_string(),
+            ));
+        }
 
         println!(
             "{} JDK {} from {}",

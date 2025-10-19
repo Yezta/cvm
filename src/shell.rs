@@ -30,6 +30,7 @@ impl Shell {
             return Some(Shell::PowerShell);
         }
 
+        #[cfg(not(windows))]
         None
     }
 

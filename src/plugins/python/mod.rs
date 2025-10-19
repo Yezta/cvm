@@ -98,7 +98,8 @@ impl ToolProvider for PythonPlugin {
         // Parse versions like "3.12.8", "3.11.0"
         let parts: Vec<&str> = version_str.split('.').collect();
 
-        let major = parts.first()
+        let major = parts
+            .first()
             .and_then(|p| p.parse::<u32>().ok())
             .ok_or_else(|| crate::error::JcvmError::InvalidVersion(version_str.to_string()))?;
 

@@ -111,7 +111,8 @@ impl FromStr for Version {
 
         let parts: Vec<&str> = version_part.split('.').collect();
 
-        let major = parts.first()
+        let major = parts
+            .first()
             .and_then(|p| p.trim().parse::<u32>().ok())
             .ok_or_else(|| crate::error::JcvmError::InvalidVersion(s.to_string()))?;
 
