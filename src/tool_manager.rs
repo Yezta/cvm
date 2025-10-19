@@ -138,7 +138,6 @@ impl ToolManager {
         &self,
         tool_id: &str,
     ) -> Result<Vec<crate::core::traits::DetectedInstallation>> {
-        use crate::core::traits::ToolDetector;
         let plugin = self.plugin(tool_id)?;
         plugin.detect_installations().await
     }
@@ -149,7 +148,6 @@ impl ToolManager {
         tool_id: &str,
         detected: &crate::core::traits::DetectedInstallation,
     ) -> Result<InstalledTool> {
-        use crate::core::traits::ToolDetector;
         let plugin = self.plugin(tool_id)?;
         let dest_dir = self
             .config
@@ -178,7 +176,6 @@ impl ToolManager {
     /// Detect all external installations for all registered plugins
     /// Returns a list of (tool_id, total_detected_count) without importing
     pub async fn detect_all(&self) -> Result<Vec<(String, usize)>> {
-        use crate::core::traits::ToolDetector;
         let mut results = Vec::new();
 
         let tool_ids = self.registry.list_plugins()?;
@@ -206,7 +203,6 @@ impl ToolManager {
     /// Detect and import all external installations for all registered plugins
     /// Returns a list of (tool_id, imported_count, total_detected_count)
     pub async fn detect_and_import_all(&self) -> Result<Vec<(String, usize, usize)>> {
-        use crate::core::traits::ToolDetector;
         let mut results = Vec::new();
 
         let tool_ids = self.registry.list_plugins()?;
@@ -784,7 +780,7 @@ impl ToolManager {
         }
 
         let bytes = value.as_bytes();
-        matches!(bytes.get(0), Some(b) if b.is_ascii_alphabetic())
+        matches!(bytes.first(), Some(b) if b.is_ascii_alphabetic())
             && matches!(bytes.get(2), Some(b'\\' | b'/'))
     }
 

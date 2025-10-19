@@ -66,7 +66,7 @@ impl NodeJsInstaller {
             .collect();
 
         if entries.len() == 1 && entries[0].path().is_dir() {
-            std::fs::rename(&entries[0].path(), dest_dir)?;
+            std::fs::rename(entries[0].path(), dest_dir)?;
             std::fs::remove_dir_all(&temp_dir)?;
         } else {
             std::fs::rename(&temp_dir, dest_dir)?;
@@ -92,7 +92,7 @@ impl NodeJsInstaller {
             .collect();
 
         if entries.len() == 1 && entries[0].path().is_dir() {
-            std::fs::rename(&entries[0].path(), dest_dir)?;
+            std::fs::rename(entries[0].path(), dest_dir)?;
             std::fs::remove_dir_all(&temp_dir)?;
         } else {
             std::fs::rename(&temp_dir, dest_dir)?;
@@ -113,7 +113,7 @@ impl crate::core::traits::ToolInstaller for NodeJsInstaller {
     async fn install(
         &self,
         distribution: &ToolDistribution,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         let version_str = distribution.version.to_string();
 
@@ -135,7 +135,7 @@ impl crate::core::traits::ToolInstaller for NodeJsInstaller {
         let url_path = distribution
             .download_url
             .split('/')
-            .last()
+            .next_back()
             .unwrap_or("node.tar.gz");
 
         let cache_dir = if let Ok(jcvm_dir) = std::env::var("JCVM_DIR") {
@@ -214,7 +214,7 @@ impl crate::core::traits::ToolInstaller for NodeJsInstaller {
         Ok(InstalledTool {
             tool_id: "node".to_string(),
             version: distribution.version.clone(),
-            path: dest_dir.clone(),
+            path: dest_dir.to_path_buf(),
             installed_at: chrono::Utc::now(),
             source: "nodejs.org".to_string(),
             executable_path: Some(executable_path),

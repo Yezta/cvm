@@ -1,7 +1,7 @@
 use crate::error::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Generic tool information that any versioned tool must provide
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -211,13 +211,14 @@ pub trait ToolProvider: Send + Sync {
     fn parse_version(&self, version_str: &str) -> Result<ToolVersion>;
 
     /// Validate if a directory contains a valid installation
-    fn validate_installation(&self, path: &PathBuf) -> Result<bool>;
+    fn validate_installation(&self, path: &Path) -> Result<bool>;
 
     /// Get the executable path(s) for the installed tool
-    fn get_executable_paths(&self, install_path: &PathBuf) -> Result<Vec<PathBuf>>;
+    #[allow(dead_code)]
+    fn get_executable_paths(&self, install_path: &Path) -> Result<Vec<PathBuf>>;
 
     /// Get environment variables that should be set for this tool
-    fn get_environment_vars(&self, install_path: &PathBuf) -> Result<Vec<(String, String)>>;
+    fn get_environment_vars(&self, install_path: &Path) -> Result<Vec<(String, String)>>;
 }
 
 /// Trait for installing tool distributions
@@ -227,13 +228,14 @@ pub trait ToolInstaller: Send + Sync {
     async fn install(
         &self,
         distribution: &ToolDistribution,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool>;
 
     /// Uninstall a tool version
     async fn uninstall(&self, installed: &InstalledTool) -> Result<()>;
 
     /// Verify installation integrity
+    #[allow(dead_code)]
     async fn verify(&self, installed: &InstalledTool) -> Result<bool>;
 }
 
@@ -247,7 +249,7 @@ pub trait ToolDetector: Send + Sync {
     async fn import_installation(
         &self,
         detected: &DetectedInstallation,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool>;
 }
 

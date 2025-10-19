@@ -76,8 +76,7 @@ impl NodeJsApi {
         let cleaned = version.trim_start_matches('v');
         let parts: Vec<&str> = cleaned.split('.').collect();
 
-        let major = parts
-            .get(0)
+        let major = parts.first()
             .and_then(|s| s.parse::<u32>().ok())
             .ok_or_else(|| JcvmError::InvalidVersion(version.to_string()))?;
 

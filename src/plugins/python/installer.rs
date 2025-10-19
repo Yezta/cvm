@@ -291,7 +291,7 @@ impl ToolInstaller for PythonInstaller {
     async fn install(
         &self,
         distribution: &ToolDistribution,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         let version_str = distribution.version.to_string();
 
@@ -306,15 +306,15 @@ impl ToolInstaller for PythonInstaller {
         println!(
             "Installing Python {} for {}-{}",
             version_str,
-            distribution.platform.to_string(),
-            distribution.architecture.to_string()
+            distribution.platform,
+            distribution.architecture
         );
 
         // Determine cache file name
         let url_path = distribution
             .download_url
             .split('/')
-            .last()
+            .next_back()
             .unwrap_or("python.tar.gz");
         let cache_file = self.cache_dir.join(url_path);
 
@@ -348,7 +348,7 @@ impl ToolInstaller for PythonInstaller {
         }
 
         // Create destination directory
-        std::fs::create_dir_all(&dest_dir)?;
+        std::fs::create_dir_all(dest_dir)?;
 
         // Install based on archive type
         match distribution.archive_type {
@@ -361,17 +361,17 @@ impl ToolInstaller for PythonInstaller {
                     .unwrap_or(false)
                 {
                     // Extract standalone build (pre-built binary)
-                    self.extract_tarball(&cache_file, &dest_dir).await?;
+                    self.extract_tarball(&cache_file, dest_dir).await?;
                 } else {
                     // Build from source (python.org tar.xz)
-                    self.build_from_source(&cache_file, &dest_dir).await?;
+                    self.build_from_source(&cache_file, dest_dir).await?;
                 }
             }
             ArchiveType::Pkg => {
-                self.install_pkg(&cache_file, &dest_dir).await?;
+                self.install_pkg(&cache_file, dest_dir).await?;
             }
             ArchiveType::Exe => {
-                self.install_exe(&cache_file, &dest_dir).await?;
+                self.install_exe(&cache_file, dest_dir).await?;
             }
             _ => {
                 return Err(JcvmError::UnsupportedPlatform {
@@ -388,7 +388,7 @@ impl ToolInstaller for PythonInstaller {
         );
 
         // Determine executable path
-        let executable_path = self.get_python_executable(&dest_dir, &distribution.platform);
+        let executable_path = self.get_python_executable(dest_dir, &distribution.platform);
 
         // Verify installation
         if !executable_path.exists() {
@@ -424,7 +424,7 @@ impl ToolInstaller for PythonInstaller {
         Ok(InstalledTool {
             tool_id: "python".to_string(),
             version: distribution.version.clone(),
-            path: dest_dir.clone(),
+            path: dest_dir.to_path_buf(),
             installed_at: chrono::Utc::now(),
             source: distribution
                 .metadata

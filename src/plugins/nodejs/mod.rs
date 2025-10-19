@@ -8,7 +8,7 @@ use crate::core::traits::{
 };
 use crate::error::Result;
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub use api::NodeJsApi;
 pub use detector::NodeJsDetector;
@@ -101,8 +101,7 @@ impl ToolProvider for NodeJsPlugin {
 
         let parts: Vec<&str> = resolved.split('.').collect();
 
-        let major = parts
-            .get(0)
+        let major = parts.first()
             .and_then(|s| s.parse::<u32>().ok())
             .ok_or_else(|| crate::error::JcvmError::InvalidVersion(version_str.to_string()))?;
 
@@ -134,11 +133,11 @@ impl ToolProvider for NodeJsPlugin {
         Ok(version)
     }
 
-    fn validate_installation(&self, path: &PathBuf) -> Result<bool> {
+    fn validate_installation(&self, path: &Path) -> Result<bool> {
         Ok(path.join("bin/node").exists() || path.join("node.exe").exists())
     }
 
-    fn get_executable_paths(&self, install_path: &PathBuf) -> Result<Vec<PathBuf>> {
+    fn get_executable_paths(&self, install_path: &Path) -> Result<Vec<PathBuf>> {
         if cfg!(windows) {
             Ok(vec![
                 install_path.join("node.exe"),
@@ -154,7 +153,7 @@ impl ToolProvider for NodeJsPlugin {
         }
     }
 
-    fn get_environment_vars(&self, install_path: &PathBuf) -> Result<Vec<(String, String)>> {
+    fn get_environment_vars(&self, install_path: &Path) -> Result<Vec<(String, String)>> {
         let bin_path = if cfg!(windows) {
             install_path.display().to_string()
         } else {
@@ -173,7 +172,7 @@ impl crate::core::traits::ToolInstaller for NodeJsPlugin {
     async fn install(
         &self,
         distribution: &ToolDistribution,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         self.installer.install(distribution, dest_dir).await
     }
@@ -196,7 +195,7 @@ impl crate::core::traits::ToolDetector for NodeJsPlugin {
     async fn import_installation(
         &self,
         detected: &DetectedInstallation,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         self.detector.import_installation(detected, dest_dir).await
     }

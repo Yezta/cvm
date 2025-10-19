@@ -72,7 +72,7 @@ impl JavaInstaller {
 
         if entries.len() == 1 && entries[0].path().is_dir() {
             // Single root directory, move its contents
-            std::fs::rename(&entries[0].path(), dest_dir)?;
+            std::fs::rename(entries[0].path(), dest_dir)?;
             std::fs::remove_dir_all(&temp_dir)?;
         } else {
             // Multiple files/dirs, move the temp dir itself
@@ -102,7 +102,7 @@ impl JavaInstaller {
 
         if entries.len() == 1 && entries[0].path().is_dir() {
             // Single root directory, move its contents
-            std::fs::rename(&entries[0].path(), dest_dir)?;
+            std::fs::rename(entries[0].path(), dest_dir)?;
             std::fs::remove_dir_all(&temp_dir)?;
         } else {
             // Multiple files/dirs, move the temp dir itself
@@ -124,7 +124,7 @@ impl crate::core::traits::ToolInstaller for JavaInstaller {
     async fn install(
         &self,
         distribution: &ToolDistribution,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         let version_str = distribution.version.to_string();
 
@@ -148,7 +148,7 @@ impl crate::core::traits::ToolInstaller for JavaInstaller {
         let url_path = distribution
             .download_url
             .split('/')
-            .last()
+            .next_back()
             .unwrap_or("jdk.tar.gz");
 
         // Create a cache directory based on JCVM_DIR or default
@@ -210,7 +210,7 @@ impl crate::core::traits::ToolInstaller for JavaInstaller {
         Ok(InstalledTool {
             tool_id: "java".to_string(),
             version: distribution.version.clone(),
-            path: dest_dir.clone(),
+            path: dest_dir.to_path_buf(),
             installed_at: chrono::Utc::now(),
             source: "adoptium".to_string(),
             executable_path,

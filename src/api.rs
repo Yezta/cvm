@@ -3,19 +3,24 @@ use crate::models::{Architecture, JdkDistribution, Platform, Version};
 use reqwest::Client;
 use serde::Deserialize;
 
+// Old Adoptium API - kept for potential future use
+#[allow(dead_code)]
 const ADOPTIUM_API_BASE: &str = "https://api.adoptium.net/v3";
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct AdoptiumRelease {
     available_releases: Vec<u32>,
     available_lts_releases: Vec<u32>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct AdoptiumAsset {
     binary: AdoptiumBinary,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct AdoptiumBinary {
     os: String,
@@ -24,6 +29,7 @@ struct AdoptiumBinary {
     package: AdoptiumPackage,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct AdoptiumPackage {
     link: String,
@@ -31,10 +37,12 @@ struct AdoptiumPackage {
     size: Option<u64>,
 }
 
+#[allow(dead_code)]
 pub struct AdoptiumApi {
     client: Client,
 }
 
+#[allow(dead_code)]
 impl AdoptiumApi {
     pub fn new() -> Self {
         Self {

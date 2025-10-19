@@ -30,6 +30,7 @@ pub enum JcvmError {
     ShellError(String),
 
     #[error("Invalid JDK structure: {0}")]
+    #[allow(dead_code)]
     InvalidJdkStructure(String),
 
     #[error("Plugin error in '{plugin}': {message}")]

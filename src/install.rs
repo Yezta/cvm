@@ -9,11 +9,13 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use tar::Archive;
 
+#[allow(dead_code)]
 pub struct Installer {
     config: Config,
     downloader: Downloader,
 }
 
+#[allow(dead_code)]
 impl Installer {
     pub fn new(config: Config) -> Self {
         Self {
@@ -47,7 +49,7 @@ impl Installer {
         let url_path = distribution
             .download_url
             .split('/')
-            .last()
+            .next_back()
             .unwrap_or("jdk.tar.gz");
         let cache_file = self.config.cache_dir.join(url_path);
 
@@ -262,7 +264,7 @@ impl Installer {
                         let installed_at = metadata
                             .created()
                             .or_else(|_| metadata.modified())
-                            .map(|t| chrono::DateTime::<chrono::Utc>::from(t))
+                            .map(chrono::DateTime::<chrono::Utc>::from)
                             .unwrap_or_else(|_| chrono::Utc::now());
 
                         installed.push(InstalledJdk {

@@ -8,7 +8,7 @@ use crate::core::traits::{
 };
 use crate::error::Result;
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub use api::AdoptiumApi;
 pub use detector::JavaDetector;
@@ -94,8 +94,7 @@ impl ToolProvider for JavaPlugin {
         // Parse versions like "21", "17.0.10", "11.0.22+7"
         let parts: Vec<&str> = version_str.split(&['.', '+'][..]).collect();
 
-        let major = parts
-            .get(0)
+        let major = parts.first()
             .and_then(|p| p.parse::<u32>().ok())
             .ok_or_else(|| crate::error::JcvmError::InvalidVersion(version_str.to_string()))?;
 
@@ -114,7 +113,7 @@ impl ToolProvider for JavaPlugin {
         Ok(version)
     }
 
-    fn validate_installation(&self, path: &PathBuf) -> Result<bool> {
+    fn validate_installation(&self, path: &Path) -> Result<bool> {
         // Check for macOS JDK structure (Contents/Home/bin/java)
         if path.join("Contents/Home/bin/java").exists() {
             return Ok(true);
@@ -133,11 +132,11 @@ impl ToolProvider for JavaPlugin {
         Ok(false)
     }
 
-    fn get_executable_paths(&self, install_path: &PathBuf) -> Result<Vec<PathBuf>> {
+    fn get_executable_paths(&self, install_path: &Path) -> Result<Vec<PathBuf>> {
         let java_home = if install_path.join("Contents/Home").exists() {
             install_path.join("Contents/Home")
         } else {
-            install_path.clone()
+            install_path.to_path_buf()
         };
 
         let bin_dir = java_home.join("bin");
@@ -157,11 +156,11 @@ impl ToolProvider for JavaPlugin {
         }
     }
 
-    fn get_environment_vars(&self, install_path: &PathBuf) -> Result<Vec<(String, String)>> {
+    fn get_environment_vars(&self, install_path: &Path) -> Result<Vec<(String, String)>> {
         let java_home = if install_path.join("Contents/Home").exists() {
             install_path.join("Contents/Home")
         } else {
-            install_path.clone()
+            install_path.to_path_buf()
         };
 
         Ok(vec![
@@ -179,7 +178,7 @@ impl crate::core::traits::ToolInstaller for JavaPlugin {
     async fn install(
         &self,
         distribution: &ToolDistribution,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         self.installer.install(distribution, dest_dir).await
     }
@@ -202,7 +201,7 @@ impl crate::core::traits::ToolDetector for JavaPlugin {
     async fn import_installation(
         &self,
         detected: &DetectedInstallation,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         self.detector.import_installation(detected, dest_dir).await
     }

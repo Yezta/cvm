@@ -50,14 +50,13 @@ impl JavaDetector {
         let version_dir = self.config.get_version_dir(&version_str);
 
         // Check if already managed by JCVM
-        if version_dir.exists() {
-            if version_dir.is_symlink() && std::fs::read_link(&version_dir)? == detected.path {
+        if version_dir.exists()
+            && version_dir.is_symlink() && std::fs::read_link(&version_dir)? == detected.path {
                 return Err(JcvmError::VersionAlreadyInstalled(
                     version_str,
                     version_dir.display().to_string(),
                 ));
             }
-        }
 
         println!(
             "{} JDK {} from {}",
@@ -263,7 +262,7 @@ impl JavaDetector {
                         // Extract major.minor.patch
                         let parts: Vec<&str> = version_str.split(['.', '_', '-']).collect();
 
-                        if let Some(major_str) = parts.get(0) {
+                        if let Some(major_str) = parts.first() {
                             if let Ok(major) = major_str.parse::<u32>() {
                                 let minor = parts.get(1).and_then(|s| s.parse::<u32>().ok());
                                 let patch = parts.get(2).and_then(|s| s.parse::<u32>().ok());
@@ -313,10 +312,12 @@ pub struct DetectedJava {
     pub path: PathBuf,
     pub version: Version,
     pub source: String,
+    #[allow(dead_code)]
     pub raw_version: String,
 }
 
 impl DetectedJava {
+    #[allow(dead_code)]
     pub fn display_info(&self) -> String {
         format!(
             "JDK {} ({}) at {}",

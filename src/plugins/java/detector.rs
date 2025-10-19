@@ -57,7 +57,7 @@ impl JavaDetector {
 
                     let parts: Vec<&str> = cleaned.split(&['.', '_', '+'][..]).collect();
 
-                    if let Some(major_str) = parts.get(0) {
+                    if let Some(major_str) = parts.first() {
                         if let Ok(major) = major_str.parse::<u32>() {
                             let minor = parts.get(1).and_then(|s| s.parse::<u32>().ok());
                             let patch = parts.get(2).and_then(|s| s.parse::<u32>().ok());
@@ -218,19 +218,18 @@ impl crate::core::traits::ToolDetector for JavaDetector {
     async fn import_installation(
         &self,
         detected: &DetectedInstallation,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         let version_str = detected.version.to_string();
 
         // Check if already managed
-        if dest_dir.exists() {
-            if dest_dir.is_symlink() && std::fs::read_link(dest_dir)? == detected.path {
+        if dest_dir.exists()
+            && dest_dir.is_symlink() && std::fs::read_link(dest_dir)? == detected.path {
                 return Err(JcvmError::VersionAlreadyInstalled(
                     version_str,
                     dest_dir.display().to_string(),
                 ));
             }
-        }
 
         println!(
             "{} JDK {} from {}",
@@ -269,7 +268,7 @@ impl crate::core::traits::ToolDetector for JavaDetector {
         Ok(InstalledTool {
             tool_id: "java".to_string(),
             version: detected.version.clone(),
-            path: dest_dir.clone(),
+            path: dest_dir.to_path_buf(),
             installed_at: chrono::Utc::now(),
             source: detected.source.clone(),
             executable_path: detected.executable_path.clone(),

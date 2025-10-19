@@ -48,7 +48,7 @@ impl Downloader {
         );
         pb.set_message(format!(
             "Downloading {}",
-            url.split('/').last().unwrap_or("file")
+            url.split('/').next_back().unwrap_or("file")
         ));
 
         let mut file = File::create(dest.as_ref()).await?;

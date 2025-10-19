@@ -2,6 +2,7 @@ use crate::config::Config;
 use crate::error::{JcvmError, Result};
 use std::path::PathBuf;
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Shell {
     Bash,

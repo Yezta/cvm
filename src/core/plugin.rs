@@ -102,6 +102,7 @@ impl PluginRegistry {
     }
 
     /// List all plugin metadata
+    #[allow(dead_code)]
     pub fn list_metadata(&self) -> Result<Vec<PluginMetadata>> {
         let metadata = self.metadata.read().map_err(|e| JcvmError::PluginError {
             plugin: "registry".to_string(),
@@ -112,6 +113,7 @@ impl PluginRegistry {
     }
 
     /// Check if a plugin is registered
+    #[allow(dead_code)]
     pub fn has_plugin(&self, id: &str) -> bool {
         if let Ok(plugins) = self.plugins.read() {
             plugins.contains_key(id)
@@ -121,6 +123,7 @@ impl PluginRegistry {
     }
 
     /// Unregister a plugin (useful for dynamic plugins or testing)
+    #[allow(dead_code)]
     pub fn unregister(&self, id: &str) -> Result<()> {
         let mut plugins = self.plugins.write().map_err(|e| JcvmError::PluginError {
             plugin: id.to_string(),
@@ -139,6 +142,7 @@ impl PluginRegistry {
     }
 
     /// Get plugins that support a specific platform/architecture
+    #[allow(dead_code)]
     pub fn get_plugins_for_platform(
         &self,
         platform: Platform,

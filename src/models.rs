@@ -13,6 +13,7 @@ pub struct Version {
 
 impl Version {
     /// Create a version with a major component only
+    #[allow(dead_code)]
     pub fn new(major: u32) -> Self {
         Self {
             major,
@@ -23,6 +24,7 @@ impl Version {
     }
 
     /// Create a version with explicit minor component
+    #[allow(dead_code)]
     pub fn with_minor(major: u32, minor: u32) -> Self {
         let mut version = Self::new(major);
         version.minor = Some(minor);
@@ -30,6 +32,7 @@ impl Version {
     }
 
     /// Create a version with explicit minor and patch components
+    #[allow(dead_code)]
     pub fn with_patch(major: u32, minor: u32, patch: u32) -> Self {
         let mut version = Self::with_minor(major, minor);
         version.patch = Some(patch);
@@ -37,6 +40,7 @@ impl Version {
     }
 
     /// Attach build metadata to the version
+    #[allow(dead_code)]
     pub fn with_build<T: Into<String>>(mut self, build: T) -> Self {
         let build = build.into();
         if build.is_empty() {
@@ -48,6 +52,7 @@ impl Version {
     }
 
     /// Check if this version description matches a concrete version
+    #[allow(dead_code)]
     pub fn matches(&self, other: &Self) -> bool {
         if self.major != other.major {
             return false;
@@ -72,6 +77,7 @@ impl Version {
         true
     }
 
+    #[allow(dead_code)]
     pub fn is_lts(&self) -> bool {
         matches!(self.major, 8 | 11 | 17 | 21)
     }
@@ -105,8 +111,7 @@ impl FromStr for Version {
 
         let parts: Vec<&str> = version_part.split('.').collect();
 
-        let major = parts
-            .get(0)
+        let major = parts.first()
             .and_then(|p| p.trim().parse::<u32>().ok())
             .ok_or_else(|| crate::error::JcvmError::InvalidVersion(s.to_string()))?;
 
@@ -134,6 +139,7 @@ pub enum Platform {
 }
 
 impl Platform {
+    #[allow(dead_code)]
     pub fn current() -> crate::error::Result<Self> {
         match std::env::consts::OS {
             "macos" => Ok(Platform::Mac),
@@ -146,6 +152,7 @@ impl Platform {
         }
     }
 
+    #[allow(dead_code)]
     pub fn as_str(&self) -> &str {
         match self {
             Platform::Mac => "mac",
@@ -170,6 +177,7 @@ pub enum Architecture {
 }
 
 impl Architecture {
+    #[allow(dead_code)]
     pub fn current() -> crate::error::Result<Self> {
         match std::env::consts::ARCH {
             "x86_64" | "amd64" => Ok(Architecture::X64),
@@ -181,6 +189,7 @@ impl Architecture {
         }
     }
 
+    #[allow(dead_code)]
     pub fn as_str(&self) -> &str {
         match self {
             Architecture::X64 => "x64",

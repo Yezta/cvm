@@ -718,7 +718,7 @@ impl Cli {
             println!("  Created {} file", version_file);
 
             // Activate it for current shell
-            if let Ok(_) = self.tool_manager.set_current(tool_id, &version_str).await {
+            if (self.tool_manager.set_current(tool_id, &version_str).await).is_ok() {
                 println!("\n{}", "Version activated for current shell".green());
             }
         } else {

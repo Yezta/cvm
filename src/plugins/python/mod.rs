@@ -8,7 +8,7 @@ use crate::core::traits::{
 };
 use crate::error::Result;
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use api::PythonApi;
 use detector::PythonDetector;
@@ -98,8 +98,7 @@ impl ToolProvider for PythonPlugin {
         // Parse versions like "3.12.8", "3.11.0"
         let parts: Vec<&str> = version_str.split('.').collect();
 
-        let major = parts
-            .get(0)
+        let major = parts.first()
             .and_then(|p| p.parse::<u32>().ok())
             .ok_or_else(|| crate::error::JcvmError::InvalidVersion(version_str.to_string()))?;
 
@@ -114,7 +113,7 @@ impl ToolProvider for PythonPlugin {
         ))
     }
 
-    fn validate_installation(&self, path: &PathBuf) -> Result<bool> {
+    fn validate_installation(&self, path: &Path) -> Result<bool> {
         let python_exe = if cfg!(windows) {
             path.join("python.exe")
         } else {
@@ -124,7 +123,7 @@ impl ToolProvider for PythonPlugin {
         Ok(python_exe.exists())
     }
 
-    fn get_executable_paths(&self, install_path: &PathBuf) -> Result<Vec<PathBuf>> {
+    fn get_executable_paths(&self, install_path: &Path) -> Result<Vec<PathBuf>> {
         if cfg!(windows) {
             Ok(vec![
                 install_path.join("python.exe"),
@@ -141,7 +140,7 @@ impl ToolProvider for PythonPlugin {
         }
     }
 
-    fn get_environment_vars(&self, install_path: &PathBuf) -> Result<Vec<(String, String)>> {
+    fn get_environment_vars(&self, install_path: &Path) -> Result<Vec<(String, String)>> {
         let mut env_vars = Vec::new();
 
         env_vars.push((
@@ -180,7 +179,7 @@ impl ToolInstaller for PythonPlugin {
     async fn install(
         &self,
         distribution: &ToolDistribution,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         self.installer.install(distribution, dest_dir).await
     }
@@ -203,7 +202,7 @@ impl ToolDetector for PythonPlugin {
     async fn import_installation(
         &self,
         detected: &DetectedInstallation,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         self.detector.import_installation(detected, dest_dir).await
     }

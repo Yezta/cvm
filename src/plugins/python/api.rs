@@ -245,7 +245,7 @@ impl PythonApi {
     fn parse_version_string(&self, version_str: &str) -> Option<ToolVersion> {
         let parts: Vec<&str> = version_str.split('.').collect();
 
-        let major = parts.get(0)?.parse::<u32>().ok()?;
+        let major = parts.first()?.parse::<u32>().ok()?;
         let minor = parts.get(1).and_then(|p| p.parse::<u32>().ok());
         let patch = parts.get(2).and_then(|p| p.parse::<u32>().ok());
 
@@ -274,7 +274,7 @@ impl PythonApi {
                 Err(_) => {
                     eprintln!(
                         "Warning: No standalone build found for {}, using python.org",
-                        version.to_string()
+                        version
                     );
                     self.find_pythonorg_distribution(version, platform, architecture)
                         .await
@@ -329,8 +329,8 @@ impl PythonApi {
                     return Ok(ToolDistribution {
                         tool_id: "python".to_string(),
                         version: version.clone(),
-                        platform: platform.clone(),
-                        architecture: architecture.clone(),
+                        platform: *platform,
+                        architecture: *architecture,
                         download_url: asset.browser_download_url.clone(),
                         checksum,
                         size: Some(asset.size),
@@ -489,8 +489,8 @@ impl PythonApi {
         Ok(ToolDistribution {
             tool_id: "python".to_string(),
             version: version.clone(),
-            platform: platform.clone(),
-            architecture: architecture.clone(),
+            platform: *platform,
+            architecture: *architecture,
             download_url: url,
             checksum,
             size: None,
@@ -506,7 +506,7 @@ impl PythonApi {
     async fn fetch_pythonorg_checksum(&self, download_url: &str, version: &str) -> Result<String> {
         let filename = download_url
             .split('/')
-            .last()
+            .next_back()
             .ok_or_else(|| JcvmError::PluginError {
                 plugin: "python".to_string(),
                 message: "Invalid download URL".to_string(),

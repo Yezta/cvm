@@ -99,7 +99,7 @@ impl NodeJsDetector {
 
         let parts: Vec<&str> = version_str.split('.').collect();
 
-        if let Some(major_str) = parts.get(0) {
+        if let Some(major_str) = parts.first() {
             if let Ok(major) = major_str.parse::<u32>() {
                 let minor = parts.get(1).and_then(|s| s.parse::<u32>().ok());
                 let patch = parts.get(2).and_then(|s| s.parse::<u32>().ok());
@@ -260,18 +260,17 @@ impl crate::core::traits::ToolDetector for NodeJsDetector {
     async fn import_installation(
         &self,
         detected: &DetectedInstallation,
-        dest_dir: &PathBuf,
+        dest_dir: &Path,
     ) -> Result<InstalledTool> {
         let version_str = detected.version.to_string();
 
-        if dest_dir.exists() {
-            if dest_dir.is_symlink() && std::fs::read_link(dest_dir)? == detected.path {
+        if dest_dir.exists()
+            && dest_dir.is_symlink() && std::fs::read_link(dest_dir)? == detected.path {
                 return Err(JcvmError::VersionAlreadyInstalled(
                     version_str,
                     dest_dir.display().to_string(),
                 ));
             }
-        }
 
         println!(
             "{} Node.js {} from {}",
@@ -309,7 +308,7 @@ impl crate::core::traits::ToolDetector for NodeJsDetector {
         Ok(InstalledTool {
             tool_id: "node".to_string(),
             version: detected.version.clone(),
-            path: dest_dir.clone(),
+            path: dest_dir.to_path_buf(),
             installed_at: chrono::Utc::now(),
             source: detected.source.clone(),
             executable_path: detected.executable_path.clone(),
