@@ -71,7 +71,7 @@ jobs:
             
             ### Quick Install (Linux/macOS)
             ```bash
-            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.sh | bash
             ```
             
             ### Manual Install
@@ -335,7 +335,7 @@ jobs:
           REPO="${{ github.repository }}"
           
           # Update the default REPO_URL in install.sh if it has placeholder
-          sed -i "s|REPO_URL=\"\${REPO_URL:-https://github.com/Yezta/cvm.git}\"|REPO_URL=\"\${REPO_URL:-https://github.com/${REPO}.git}\"|g" install.sh || true
+          sed -i "s|REPO_URL=\"\${REPO_URL:-https://github.com/Yezta/cvm.git}\"|REPO_URL=\"\${REPO_URL:-https://github.com/${REPO}.git}\"|g" scripts/install.sh || true
           
           echo "Install script updated for release v${VERSION}"
 
@@ -343,6 +343,6 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add install.sh || true
+          git add scripts/install.sh || true
           git diff --staged --quiet || git commit -m "chore: update install script for release v${{ needs.prepare-release.outputs.version }}" || true
           git push || true

@@ -45,16 +45,16 @@ git push origin main
 
 ```bash
 # Quick install (pre-built binary)
-curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/install-binary.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/scripts/install-binary.sh | bash
 
 # Build from source
-curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/scripts/install.sh | bash
 
 # Custom install directory
-INSTALL_DIR=/usr/local/bin bash install-binary.sh
+INSTALL_DIR=/usr/local/bin bash scripts/install-binary.sh
 
 # Specific version
-VERSION=1.0.0 bash install-binary.sh
+VERSION=1.0.0 bash scripts/install-binary.sh
 ```
 
 ## Release Workflow
@@ -143,7 +143,7 @@ jcvm-v2.0.1-x86_64-apple-darwin/
 ├── README.md               # Project documentation
 ├── LICENSE                 # MIT license
 ├── CHANGELOG.md            # Version history
-└── install.sh              # Local installation script
+└── install.sh              # Local installation script (generated in archive)
 ```
 
 ## Installation Methods
@@ -153,13 +153,13 @@ jcvm-v2.0.1-x86_64-apple-darwin/
 **For pre-built binaries:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/install-binary.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/scripts/install-binary.sh | bash
 ```
 
 **For building from source:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/scripts/install.sh | bash
 ```
 
 ### Method 2: Manual Download
@@ -216,7 +216,7 @@ Runs continuous integration:
 
 ### Installation Scripts
 
-#### `install-binary.sh`
+#### `scripts/install-binary.sh`
 
 Downloads pre-built binaries from GitHub releases:
 
@@ -227,7 +227,7 @@ Downloads pre-built binaries from GitHub releases:
 - User-friendly with colored output and error handling
 - Supports version selection via `VERSION` environment variable
 
-#### `install.sh`
+#### `scripts/install.sh`
 
 Builds from source using Cargo:
 
@@ -340,13 +340,13 @@ The installation scripts support these environment variables:
 
 ```bash
 # Custom installation directory
-INSTALL_DIR=/usr/local/bin ./install-binary.sh
+INSTALL_DIR=/usr/local/bin ./scripts/install-binary.sh
 
 # Install specific version
-VERSION=1.0.0 ./install-binary.sh
+VERSION=1.0.0 ./scripts/install-binary.sh
 
 # Combine both
-INSTALL_DIR=/opt/bin VERSION=1.0.0 ./install-binary.sh
+INSTALL_DIR=/opt/bin VERSION=1.0.0 ./scripts/install-binary.sh
 ```
 
 ## Security
@@ -375,8 +375,8 @@ Before your very first release:
    
    Replace `Yezta/cvm` with your actual GitHub username/org in:
    - `.github/workflows/release.yml`
-   - `install-binary.sh`
-   - `install.sh`
+   - `scripts/install-binary.sh`
+   - `scripts/install.sh`
    - `Cargo.toml`
    - This documentation file
    - `README.md`

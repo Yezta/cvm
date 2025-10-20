@@ -110,9 +110,9 @@ jobs:
         run: |
           export PATH="$PWD/target/release:$PATH"
           
-          if [ -f test-python-integration.sh ]; then
-            chmod +x test-python-integration.sh
-            ./test-python-integration.sh || true
+          if [ -f scripts/test-python-integration.sh ]; then
+            chmod +x scripts/test-python-integration.sh
+            ./scripts/test-python-integration.sh || true
           fi
 
   security-audit:

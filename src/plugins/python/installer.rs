@@ -410,7 +410,7 @@ impl ToolInstaller for PythonInstaller {
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::symlink;
-                    if let Err(e) = symlink("python3", &python_link) {
+                    if let Err(e) = symlink(&python3_target, &python_link) {
                         println!("⚠️  Warning: Could not create 'python' symlink: {}", e);
                     } else {
                         println!("✓ Created 'python' symlink to 'python3'");

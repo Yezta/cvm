@@ -70,6 +70,7 @@ impl Downloader {
     }
 
     /// Verify file checksum
+    /// Supports both plain hashes and prefixed formats (e.g., "sha256:hash")
     pub async fn verify_checksum<P: AsRef<Path>>(path: P, expected_checksum: &str) -> Result<bool> {
         let mut file = tokio::fs::File::open(path.as_ref()).await?;
         let mut hasher = Sha256::new();
@@ -87,7 +88,14 @@ impl Downloader {
         let result = hasher.finalize();
         let computed = format!("{:x}", result);
 
-        Ok(computed.eq_ignore_ascii_case(expected_checksum))
+        // Strip checksum prefix if present (e.g., "sha256:", "md5:")
+        let expected_hash = if let Some(colon_pos) = expected_checksum.find(':') {
+            &expected_checksum[colon_pos + 1..]
+        } else {
+            expected_checksum
+        };
+
+        Ok(computed.eq_ignore_ascii_case(expected_hash))
     }
 }
 
@@ -110,5 +118,86 @@ mod tests {
             .await
             .unwrap();
         assert!(result);
+    }
+
+    #[tokio::test]
+    async fn test_verify_checksum_with_prefix() {
+        let temp_file = NamedTempFile::new().unwrap();
+        tokio::fs::write(temp_file.path(), b"hello world")
+            .await
+            .unwrap();
+
+        // SHA256 of "hello world" with prefix
+        let checksum = "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+
+        let result = Downloader::verify_checksum(temp_file.path(), checksum)
+            .await
+            .unwrap();
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn test_verify_checksum_with_md5_prefix() {
+        let temp_file = NamedTempFile::new().unwrap();
+        tokio::fs::write(temp_file.path(), b"hello world")
+            .await
+            .unwrap();
+
+        // SHA256 of "hello world" with different prefix type (md5: prefix but sha256 hash)
+        // This tests that we strip any prefix, not just sha256:
+        let checksum = "md5:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9";
+
+        let result = Downloader::verify_checksum(temp_file.path(), checksum)
+            .await
+            .unwrap();
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn test_verify_checksum_uppercase() {
+        let temp_file = NamedTempFile::new().unwrap();
+        tokio::fs::write(temp_file.path(), b"hello world")
+            .await
+            .unwrap();
+
+        // SHA256 of "hello world" in uppercase
+        let checksum = "B94D27B9934D3E08A52E52D7DA7DABFAC484EFE37A5380EE9088F7ACE2EFCDE9";
+
+        let result = Downloader::verify_checksum(temp_file.path(), checksum)
+            .await
+            .unwrap();
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn test_verify_checksum_invalid() {
+        let temp_file = NamedTempFile::new().unwrap();
+        tokio::fs::write(temp_file.path(), b"hello world")
+            .await
+            .unwrap();
+
+        // Invalid checksum
+        let checksum = "0000000000000000000000000000000000000000000000000000000000000000";
+
+        let result = Downloader::verify_checksum(temp_file.path(), checksum)
+            .await
+            .unwrap();
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn test_verify_checksum_with_prefix_invalid() {
+        let temp_file = NamedTempFile::new().unwrap();
+        tokio::fs::write(temp_file.path(), b"hello world")
+            .await
+            .unwrap();
+
+        // Invalid checksum with prefix
+        let checksum = "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+
+        let result = Downloader::verify_checksum(temp_file.path(), checksum)
+            .await
+            .unwrap();
+        assert!(!result);
     }
 }

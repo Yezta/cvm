@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
-# JCVM - Binary Installation Script
-# Downloads and installs pre-built JCVM binaries
-# Usage: curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/install-binary.sh | bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# JCVM Binary Installer Script
+# Usage: curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/scripts/install-binary.sh | bash
 
 set -e
 

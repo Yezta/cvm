@@ -342,6 +342,132 @@ python 3.11.5
 - Version lists paginated
 - Deferred detection
 
+## Error Handling & Resilience
+
+### Overview
+
+JCVM implements robust error handling throughout the tool manager to ensure installation integrity and provide clear feedback when issues occur. The system prioritizes fail-fast behavior over silent failures, ensuring corrupted installations are detected early.
+
+### Error Handling Strategy
+
+#### 1. Manifest-Based Validation
+
+Each installed tool version maintains a manifest file (`manifest.json`) containing:
+
+- Version information
+- Installation timestamp
+- Source metadata
+- Executable paths
+
+When operations require version information, the system follows this fallback strategy:
+
+1. **Primary**: Read from manifest file (most reliable)
+2. **Fallback**: Parse version from directory name (with validation)
+3. **Failure**: Return clear error if both fail
+
+#### 2. Version Parsing Errors
+
+**Problem Addressed**: Previously, version parsing failures were masked by creating invalid `ToolVersion` objects with major version 0, leading to silent failures.
+
+**Solution**: Explicit error propagation when both manifest is missing AND version parsing fails:
+
+```rust
+let version = match manifest.as_ref() {
+    Some(m) => m.version.clone(),
+    None => {
+        warn!(
+            "Manifest file not found for {} {} at {}. This may indicate a corrupted installation.",
+            tool_id, version_str, install_dir.display()
+        );
+        
+        plugin.parse_version(version_str).map_err(|e| {
+            JcvmError::InvalidToolStructure {
+                tool: tool_id.to_string(),
+                message: format!(
+                    "Cannot activate: manifest missing and version parsing failed ({}). \
+                    Installation data may be corrupted at: {}",
+                    e, install_dir.display()
+                ),
+            }
+        })?
+    }
+};
+```
+
+**Benefits**:
+
+- Clear error messages indicate corrupted installations
+- Warning logs emitted for missing manifests
+- Fail-fast prevents operations on invalid state
+- Better debugging and user feedback
+
+#### 3. Logging Infrastructure
+
+The system uses the `tracing` crate for structured logging:
+
+- **Error logs**: Critical failures requiring user action
+- **Warning logs**: Potentially problematic states (e.g., missing manifests)
+- **Info logs**: Normal operations and state changes
+- **Debug logs**: Detailed execution flow for troubleshooting
+
+Example warning for missing manifest:
+
+```text
+WARN: Manifest file not found for python 3.13.7 at /Users/user/.jcvm/versions/python/3.13.7. 
+This may indicate a corrupted installation.
+```
+
+#### 4. Error Recovery
+
+**Uninstall Operation**:
+
+- Detects missing manifests and corrupted installations
+- Warns user but attempts to proceed with parsed version
+- Fails with clear error if version cannot be determined
+- Provides path to corrupted installation for manual cleanup
+
+**Activate Operation**:
+
+- Validates installation integrity before activation
+- Refuses to activate tools with corrupted metadata
+- Suggests reinstallation when corruption detected
+
+### Testing Error Handling
+
+Comprehensive tests verify error handling behavior:
+
+```rust
+#[test]
+fn test_uninstall_fails_on_missing_manifest_and_invalid_version() {
+    // Verifies uninstall fails with InvalidToolStructure error when:
+    // - Manifest file is missing
+    // - Version string cannot be parsed
+    // Ensures error message contains corruption information
+}
+
+#[test]
+fn test_read_manifest_returns_none_for_missing_file() {
+    // Verifies read_manifest returns Ok(None) for missing files
+    // Ensures this is the expected behavior
+}
+```
+
+### Future Improvements
+
+Potential enhancements to error handling:
+
+1. **Recovery Tools**: Add `jcvm doctor` command to scan and repair corrupted installations
+2. **Auto-Repair**: Implement automatic manifest regeneration from installed files
+3. **Telemetry**: Track corruption frequency to identify systemic issues
+4. **Validation**: Add `jcvm validate` command to check installation integrity
+
+### Related Files
+
+- `src/tool_manager.rs` - Main error handling logic
+- `src/error.rs` - Error types and definitions
+- `src/core/traits.rs` - `ToolVersion` structure
+- `Cargo.toml` - Tracing dependencies
+
 ## Future Enhancements
 
 ### Phase 1 (Current)

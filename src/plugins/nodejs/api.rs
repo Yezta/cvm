@@ -14,16 +14,6 @@ struct NodeRelease {
     files: Vec<String>,
 }
 
-/// LTS version information with code names
-/// Based on Node.js release schedule: https://github.com/nodejs/release
-const LTS_VERSIONS: &[(u32, &str)] = &[
-    (22, "Jod"),      // Active LTS (Oct 2024 - Apr 2027)
-    (20, "Iron"),     // Active LTS (Oct 2023 - Apr 2026)
-    (18, "Hydrogen"), // Maintenance LTS (Oct 2022 - Apr 2025)
-    (16, "Gallium"),  // End-of-Life (Oct 2021 - Sep 2023)
-    (14, "Fermium"),  // End-of-Life (Oct 2020 - Apr 2023)
-];
-
 pub struct NodeJsApi {
     client: Client,
 }
@@ -84,25 +74,22 @@ impl NodeJsApi {
         let minor = parts.get(1).and_then(|s| s.parse::<u32>().ok());
         let patch = parts.get(2).and_then(|s| s.parse::<u32>().ok());
 
-        let (explicit_lts, explicit_name) = match lts {
-            serde_json::Value::Bool(flag) => (*flag, None),
+        // Determine LTS status and codename from API response
+        // The API returns either:
+        // - false (boolean) for non-LTS versions
+        // - "Codename" (string) for LTS versions with their codename
+        let (is_lts, lts_name) = match lts {
+            serde_json::Value::Bool(false) => (false, None),
             serde_json::Value::String(name) if !name.is_empty() => (true, Some(name.to_string())),
+            // Some edge cases where lts might be true boolean
+            serde_json::Value::Bool(true) => (true, None),
             _ => (false, None),
         };
 
-        let fallback_name = if explicit_lts {
-            None
-        } else {
-            LTS_VERSIONS
-                .iter()
-                .find(|(v, _)| *v == major)
-                .map(|(_, name)| name.to_string())
-        };
+        let mut version =
+            ToolVersion::new(cleaned.to_string(), major, minor, patch).with_lts(is_lts);
 
-        let mut version = ToolVersion::new(cleaned.to_string(), major, minor, patch)
-            .with_lts(explicit_lts || fallback_name.is_some());
-
-        if let Some(name) = explicit_name.or(fallback_name) {
+        if let Some(name) = lts_name {
             version = version.with_metadata(format!("lts:{}", name));
         }
 
@@ -234,41 +221,54 @@ mod tests {
     fn test_parse_release_version() {
         let api = NodeJsApi::new();
 
-        // Test standard version
+        // Test non-LTS version
         let version = api
-            .parse_release_version("v20.10.0", &serde_json::Value::Bool(false))
+            .parse_release_version("v19.10.0", &serde_json::Value::Bool(false))
             .unwrap();
-        assert_eq!(version.major, 20);
+        assert_eq!(version.major, 19);
         assert_eq!(version.minor, Some(10));
         assert_eq!(version.patch, Some(0));
-        assert!(version.is_lts); // 20 is an LTS version
+        assert!(!version.is_lts);
 
-        // Test LTS version with name
+        // Test LTS version with codename (as returned by API)
         let lts_value = serde_json::Value::String("Iron".to_string());
         let version = api.parse_release_version("v20.10.0", &lts_value).unwrap();
+        assert_eq!(version.major, 20);
         assert!(version.is_lts);
-        assert!(version.metadata.as_ref().unwrap().contains("Iron"));
+        assert_eq!(version.metadata, Some("lts:Iron".to_string()));
 
         // Test version without v prefix
         let version = api
-            .parse_release_version("18.17.1", &serde_json::Value::Bool(false))
+            .parse_release_version(
+                "18.17.1",
+                &serde_json::Value::String("Hydrogen".to_string()),
+            )
             .unwrap();
         assert_eq!(version.major, 18);
         assert_eq!(version.minor, Some(17));
         assert_eq!(version.patch, Some(1));
+        assert!(version.is_lts);
+        assert_eq!(version.metadata, Some("lts:Hydrogen".to_string()));
     }
 
     #[test]
-    fn test_lts_detection() {
+    fn test_lts_detection_from_api() {
         let api = NodeJsApi::new();
 
-        // Current LTS versions
-        for (major, name) in LTS_VERSIONS {
+        // Test LTS versions with different codenames
+        let test_cases = vec![(22, "Jod"), (20, "Iron"), (18, "Hydrogen"), (16, "Gallium")];
+
+        for (major, name) in test_cases {
             let version_str = format!("v{}.0.0", major);
-            let version = api
-                .parse_release_version(&version_str, &serde_json::Value::Bool(false))
-                .unwrap();
+            let lts_value = serde_json::Value::String(name.to_string());
+            let version = api.parse_release_version(&version_str, &lts_value).unwrap();
             assert!(version.is_lts, "Version {} ({}) should be LTS", major, name);
+            assert_eq!(
+                version.metadata,
+                Some(format!("lts:{}", name)),
+                "Version {} should have correct LTS metadata",
+                major
+            );
         }
 
         // Non-LTS version
@@ -276,6 +276,7 @@ mod tests {
             .parse_release_version("v19.0.0", &serde_json::Value::Bool(false))
             .unwrap();
         assert!(!version.is_lts, "Version 19 should not be LTS");
+        assert_eq!(version.metadata, None);
     }
 
     #[tokio::test]

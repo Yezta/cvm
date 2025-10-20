@@ -11,6 +11,7 @@ use std::fs;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tracing::warn;
 
 const MANIFEST_FILE: &str = ".jcvm-manifest.json";
 
@@ -113,19 +114,38 @@ impl ToolManager {
         let install_dir = self.resolve_install_dir(tool_id, version_str)?;
 
         let manifest = self.read_manifest(&install_dir)?;
-        let installed = manifest.unwrap_or_else(|| {
-            let parsed = plugin
-                .parse_version(version_str)
-                .unwrap_or_else(|_| ToolVersion::new(version_str.to_string(), 0, None, None));
-            InstalledTool {
-                tool_id: tool_id.to_string(),
-                version: parsed,
-                path: install_dir.clone(),
-                installed_at: Utc::now(),
-                source: "unknown".to_string(),
-                executable_path: None,
+        let installed = match manifest {
+            Some(m) => m,
+            None => {
+                // Manifest is missing - this could indicate corrupted installation data
+                warn!(
+                    "Manifest file not found for {} {} at {}. This may indicate a corrupted installation.",
+                    tool_id, version_str, install_dir.display()
+                );
+
+                // Try to parse the version, but fail if parsing fails
+                let parsed = plugin.parse_version(version_str).map_err(|e| {
+                    JcvmError::InvalidToolStructure {
+                        tool: tool_id.to_string(),
+                        message: format!(
+                            "Cannot uninstall: manifest missing and version parsing failed ({}). \
+                            Installation data may be corrupted at: {}",
+                            e,
+                            install_dir.display()
+                        ),
+                    }
+                })?;
+
+                InstalledTool {
+                    tool_id: tool_id.to_string(),
+                    version: parsed,
+                    path: install_dir.clone(),
+                    installed_at: Utc::now(),
+                    source: "unknown".to_string(),
+                    executable_path: None,
+                }
             }
-        });
+        };
 
         plugin.uninstall(&installed).await?;
         let _ = fs::remove_file(self.manifest_path(&install_dir));
@@ -282,14 +302,29 @@ impl ToolManager {
         }
 
         let manifest = self.read_manifest(&install_dir)?;
-        let version = manifest
-            .as_ref()
-            .map(|m| m.version.clone())
-            .unwrap_or_else(|| {
+        let version = match manifest.as_ref() {
+            Some(m) => m.version.clone(),
+            None => {
+                // Manifest is missing - log a warning but continue with parsed version
+                warn!(
+                    "Manifest file not found for {} {} at {}. This may indicate a corrupted installation.",
+                    tool_id, version_str, install_dir.display()
+                );
+
+                // Try to parse the version, but fail if parsing fails
                 plugin
                     .parse_version(version_str)
-                    .unwrap_or_else(|_| ToolVersion::new(version_str.to_string(), 0, None, None))
-            });
+                    .map_err(|e| JcvmError::InvalidToolStructure {
+                        tool: tool_id.to_string(),
+                        message: format!(
+                            "Cannot activate: manifest missing and version parsing failed ({}). \
+                            Installation data may be corrupted at: {}",
+                            e,
+                            install_dir.display()
+                        ),
+                    })?
+            }
+        };
 
         let info = plugin.info();
 
@@ -865,6 +900,7 @@ impl ToolManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     #[test]
     fn sanitize_home_value_strips_env_and_path_segments() {
@@ -901,5 +937,71 @@ mod tests {
             ToolManager::compare_versions_desc(&v3_10_10, &v3_10_10),
             Ordering::Equal
         );
+    }
+
+    #[tokio::test]
+    async fn test_uninstall_fails_on_missing_manifest_and_invalid_version() {
+        // Setup temporary directories
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a proper config with all directories
+        let mut config = Config::default();
+        config.jcvm_dir = temp_dir.path().to_path_buf();
+        config.versions_dir = temp_dir.path().join("versions");
+        config.alias_dir = temp_dir.path().join("alias");
+        config.cache_dir = temp_dir.path().join("cache");
+
+        std::fs::create_dir_all(&config.versions_dir).unwrap();
+        std::fs::create_dir_all(&config.alias_dir).unwrap();
+        std::fs::create_dir_all(&config.cache_dir).unwrap();
+
+        // Load the builtin plugins (including Python)
+        let registry = crate::plugins::load_builtin_plugins(&config).unwrap();
+        let manager = ToolManager::new(config, registry);
+
+        // Create an installation directory without a manifest
+        let install_dir = manager
+            .config
+            .versions_dir
+            .join("python")
+            .join("invalid-version");
+        std::fs::create_dir_all(&install_dir).unwrap();
+
+        // Attempt to uninstall with an invalid version string
+        // This should fail because:
+        // 1. The manifest is missing
+        // 2. The version string "invalid-version" cannot be parsed
+        let result = manager.uninstall("python", "invalid-version").await;
+
+        // Verify that the error is an InvalidToolStructure error
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            JcvmError::InvalidToolStructure { tool, message } => {
+                assert_eq!(tool, "python");
+                assert!(message.contains("manifest missing"));
+                assert!(message.contains("version parsing failed"));
+                assert!(message.contains("corrupted"));
+            }
+            other => panic!("Expected InvalidToolStructure error, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_read_manifest_returns_none_for_missing_file() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let mut config = Config::default();
+        config.versions_dir = temp_dir.path().join("versions");
+
+        let manager = ToolManager::new(config, PluginRegistry::default());
+
+        // Create a directory without a manifest
+        let install_dir = temp_dir.path().join("test-install");
+        std::fs::create_dir_all(&install_dir).unwrap();
+
+        // read_manifest should return Ok(None) when manifest doesn't exist
+        let result = manager.read_manifest(&install_dir);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
     }
 }

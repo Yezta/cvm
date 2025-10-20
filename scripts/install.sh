@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # JCVM - Quick Installation Script
-# Usage: curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/Yezta/cvm/main/scripts/install.sh | bash
 
 set -e
 
