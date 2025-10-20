@@ -111,9 +111,28 @@ PROJECT_NO_VERSION="$TEMP_DIR/project-no-version"
 
 mkdir -p "$PROJECT_A" "$PROJECT_B" "$PROJECT_C" "$PROJECT_NO_VERSION"
 
+# Helper function to extract installed Java versions
+# Parses `jcvm list` output and extracts version numbers
+# Example input format:
+#   → 21.0.7
+#     25
+#     1.8.0_452
+# Returns: Clean version numbers (max 3 versions)
+get_installed_versions() {
+    "$JCVM_BIN" list 2>/dev/null | \
+        grep -E '^\s*(→\s+)?[0-9]+' | \
+        awk '{
+            # Remove arrow marker (→) and extract first field (version number)
+            gsub(/^[[:space:]]*→[[:space:]]*/, "");
+            gsub(/^[[:space:]]+/, "");
+            print $1
+        }' | \
+        head -n 3
+}
+
 # Get list of installed versions
 echo -e "\n${BLUE}Checking installed Java versions...${NC}"
-INSTALLED_VERSIONS=$("$JCVM_BIN" list 2>/dev/null | grep -E '^\s*(→\s+)?[0-9]+' | sed 's/^[[:space:]]*→[[:space:]]*//' | sed 's/^[[:space:]]*//' | awk '{print $1}' | head -n 3)
+INSTALLED_VERSIONS=$(get_installed_versions)
 
 if [ -z "$INSTALLED_VERSIONS" ]; then
     echo -e "${YELLOW}Warning: No Java versions installed. Installing test versions...${NC}"
