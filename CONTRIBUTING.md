@@ -15,14 +15,55 @@ Thank you for your interest in contributing to JCVM! This document provides guid
 ## Development Setup
 
 1. Clone your fork:
+## Getting Started
+
 ```bash
-git clone https://github.com/yourusername/jcvm.git
+git clone https://github.com/Yezta/cvm.git
 cd jcvm
+
+2. Build the project:
+```bash
+cargo build
 ```
 
-2. Test locally:
+3. Test locally:
 ```bash
-./jcvm.sh help
+./target/debug/jcvm --help
+```
+
+4. Run tests:
+```bash
+cargo test
+```
+
+## Version Management
+
+JCVM follows **Semantic Versioning** with automated version bumping:
+
+- **Automatic Patch Bumps**: Every commit to `main` automatically bumps the patch version
+- **Manual Major/Minor Bumps**: Use GitHub Actions workflow for major/minor versions
+- **Local Development**: Use `./scripts/bump-version.sh [major|minor|patch]`
+
+See [Version Management Guide](docs/VERSION_MANAGEMENT.md) for detailed information.
+
+### Commit Message Guidelines
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```bash
+feat: add new feature
+fix: resolve bug
+docs: update documentation
+chore: maintenance tasks
+refactor: code refactoring
+test: add tests
+```
+
+For breaking changes:
+```bash
+feat!: redesign CLI structure
+
+BREAKING CHANGE: Commands now use verb-noun pattern
 ```
 
 ## Code Style

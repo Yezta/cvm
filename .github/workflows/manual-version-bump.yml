@@ -1,0 +1,199 @@
+name: Manual Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+        default: 'patch'
+      skip_tag:
+        description: 'Skip creating a git tag'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  manual-bump:
+    name: Manual Version Bump (${{ inputs.bump_type }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(cat VERSION | tr -d '[:space:]')
+          echo "version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+          echo "Current version: ${CURRENT_VERSION}"
+
+      - name: Bump version
+        id: bump_version
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          BUMP_TYPE="${{ inputs.bump_type }}"
+          
+          # Parse semantic version
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          
+          # Bump based on type
+          case "$BUMP_TYPE" in
+            major)
+              NEW_MAJOR=$((major + 1))
+              NEW_VERSION="${NEW_MAJOR}.0.0"
+              ;;
+            minor)
+              NEW_MINOR=$((minor + 1))
+              NEW_VERSION="${major}.${NEW_MINOR}.0"
+              ;;
+            patch)
+              NEW_PATCH=$((patch + 1))
+              NEW_VERSION="${major}.${minor}.${NEW_PATCH}"
+              ;;
+            *)
+              echo "Invalid bump type: $BUMP_TYPE"
+              exit 1
+              ;;
+          esac
+          
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "Bumped ${BUMP_TYPE} version from ${CURRENT_VERSION} to ${NEW_VERSION}"
+
+      - name: Update VERSION file
+        run: |
+          echo "${{ steps.bump_version.outputs.new_version }}" > VERSION
+          echo "Updated VERSION file to ${{ steps.bump_version.outputs.new_version }}"
+
+      - name: Update Cargo.toml version
+        run: |
+          sed -i "s/^version = \".*\"/version = \"${{ steps.bump_version.outputs.new_version }}\"/" Cargo.toml
+          echo "Updated Cargo.toml to version ${{ steps.bump_version.outputs.new_version }}"
+
+      - name: Update Cargo.lock
+        run: |
+          cargo update -p jcvm --precise ${{ steps.bump_version.outputs.new_version }} || cargo update -p jcvm || true
+
+      - name: Get commit messages since last version
+        id: commits
+        run: |
+          # Get the last version tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LAST_TAG" ]; then
+            # If no tags, get all commits
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            # Get commits since last tag
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # Save to file to handle multiline
+          echo "$COMMITS" > /tmp/commits.txt
+
+      - name: Update CHANGELOG.md
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+          BUMP_TYPE="${{ inputs.bump_type }}"
+          DATE=$(date +%Y-%m-%d)
+          
+          # Determine changelog section based on bump type
+          case "$BUMP_TYPE" in
+            major)
+              SECTION="### Breaking Changes"
+              ;;
+            minor)
+              SECTION="### Added"
+              ;;
+            patch)
+              SECTION="### Fixed"
+              ;;
+          esac
+          
+          # Create temporary file with new entry
+          cat > /tmp/new_entry.md << EOF
+          
+          ## [${NEW_VERSION}] - ${DATE}
+          
+          ${SECTION}
+          
+          EOF
+          
+          # Add commit messages
+          cat /tmp/commits.txt >> /tmp/new_entry.md
+          
+          # Insert after the "## [Unreleased]" section or at the beginning
+          if grep -q "## \[Unreleased\]" CHANGELOG.md; then
+            # Find line number of [Unreleased] section
+            LINE_NUM=$(grep -n "## \[Unreleased\]" CHANGELOG.md | head -1 | cut -d: -f1)
+            # Find next ## heading after Unreleased
+            NEXT_SECTION=$(tail -n +$((LINE_NUM + 1)) CHANGELOG.md | grep -n "^## \[" | head -1 | cut -d: -f1)
+            
+            if [ -n "$NEXT_SECTION" ]; then
+              INSERT_LINE=$((LINE_NUM + NEXT_SECTION))
+            else
+              # Append at end
+              cat /tmp/new_entry.md >> CHANGELOG.md
+              exit 0
+            fi
+            
+            # Insert new entry
+            head -n $((INSERT_LINE - 1)) CHANGELOG.md > /tmp/changelog_new.md
+            cat /tmp/new_entry.md >> /tmp/changelog_new.md
+            tail -n +${INSERT_LINE} CHANGELOG.md >> /tmp/changelog_new.md
+            mv /tmp/changelog_new.md CHANGELOG.md
+          else
+            # Just append to the top after the header
+            head -n 7 CHANGELOG.md > /tmp/changelog_new.md
+            cat /tmp/new_entry.md >> /tmp/changelog_new.md
+            tail -n +8 CHANGELOG.md >> /tmp/changelog_new.md
+            mv /tmp/changelog_new.md CHANGELOG.md
+          fi
+          
+          echo "Updated CHANGELOG.md with version ${NEW_VERSION}"
+
+      - name: Commit version bump
+        run: |
+          git add VERSION Cargo.toml Cargo.lock CHANGELOG.md
+          git commit -m "chore: bump ${{ inputs.bump_type }} version to ${{ steps.bump_version.outputs.new_version }}" || echo "No changes to commit"
+
+      - name: Create and push tag
+        if: ${{ !inputs.skip_tag }}
+        run: |
+          git tag -a "v${{ steps.bump_version.outputs.new_version }}" -m "Release version ${{ steps.bump_version.outputs.new_version }}"
+          git push origin main --tags
+
+      - name: Push changes without tag
+        if: ${{ inputs.skip_tag }}
+        run: |
+          git push origin main
+
+      - name: Summary
+        run: |
+          echo "### Manual Version Bump Complete! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Bump Type:** \`${{ inputs.bump_type }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Previous Version:** ${{ steps.current_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**New Version:** ${{ steps.bump_version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.skip_tag }}" = "false" ]; then
+            echo "Tag \`v${{ steps.bump_version.outputs.new_version }}\` has been created and pushed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "_Tag creation was skipped._" >> $GITHUB_STEP_SUMMARY
+          fi

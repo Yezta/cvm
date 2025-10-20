@@ -1,0 +1,153 @@
+name: Version Bump
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'VERSION'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'CHANGELOG.md'
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    name: Automatic Patch Version Bump
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(cat VERSION | tr -d '[:space:]')
+          echo "version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+          echo "Current version: ${CURRENT_VERSION}"
+
+      - name: Bump patch version
+        id: bump_version
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          
+          # Parse semantic version
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          
+          # Increment patch version
+          NEW_PATCH=$((patch + 1))
+          NEW_VERSION="${major}.${minor}.${NEW_PATCH}"
+          
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "Bumped version from ${CURRENT_VERSION} to ${NEW_VERSION}"
+
+      - name: Update VERSION file
+        run: |
+          echo "${{ steps.bump_version.outputs.new_version }}" > VERSION
+          echo "Updated VERSION file to ${{ steps.bump_version.outputs.new_version }}"
+
+      - name: Update Cargo.toml version
+        run: |
+          sed -i "s/^version = \".*\"/version = \"${{ steps.bump_version.outputs.new_version }}\"/" Cargo.toml
+          echo "Updated Cargo.toml to version ${{ steps.bump_version.outputs.new_version }}"
+
+      - name: Update Cargo.lock
+        run: |
+          cargo update -p jcvm --precise ${{ steps.bump_version.outputs.new_version }} || cargo update -p jcvm || true
+
+      - name: Get commit messages since last version
+        id: commits
+        run: |
+          # Get the last version tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LAST_TAG" ]; then
+            # If no tags, get all commits
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            # Get commits since last tag
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # Save to file to handle multiline
+          echo "$COMMITS" > /tmp/commits.txt
+          echo "commits_file=/tmp/commits.txt" >> $GITHUB_OUTPUT
+
+      - name: Update CHANGELOG.md
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+          DATE=$(date +%Y-%m-%d)
+          
+          # Create temporary file with new entry
+          cat > /tmp/new_entry.md << EOF
+          
+          ## [${NEW_VERSION}] - ${DATE}
+          
+          ### Changed
+          
+          EOF
+          
+          # Add commit messages
+          cat /tmp/commits.txt >> /tmp/new_entry.md
+          
+          # Insert after the "## [Unreleased]" section or at the beginning
+          if grep -q "## \[Unreleased\]" CHANGELOG.md; then
+            # Find line number of [Unreleased] section
+            LINE_NUM=$(grep -n "## \[Unreleased\]" CHANGELOG.md | head -1 | cut -d: -f1)
+            # Find next ## heading after Unreleased
+            NEXT_SECTION=$(tail -n +$((LINE_NUM + 1)) CHANGELOG.md | grep -n "^## \[" | head -1 | cut -d: -f1)
+            
+            if [ -n "$NEXT_SECTION" ]; then
+              INSERT_LINE=$((LINE_NUM + NEXT_SECTION))
+            else
+              # Append at end
+              cat /tmp/new_entry.md >> CHANGELOG.md
+              exit 0
+            fi
+            
+            # Insert new entry
+            head -n $((INSERT_LINE - 1)) CHANGELOG.md > /tmp/changelog_new.md
+            cat /tmp/new_entry.md >> /tmp/changelog_new.md
+            tail -n +${INSERT_LINE} CHANGELOG.md >> /tmp/changelog_new.md
+            mv /tmp/changelog_new.md CHANGELOG.md
+          else
+            # Just append to the top after the header
+            head -n 7 CHANGELOG.md > /tmp/changelog_new.md
+            cat /tmp/new_entry.md >> /tmp/changelog_new.md
+            tail -n +8 CHANGELOG.md >> /tmp/changelog_new.md
+            mv /tmp/changelog_new.md CHANGELOG.md
+          fi
+          
+          echo "Updated CHANGELOG.md with version ${NEW_VERSION}"
+
+      - name: Commit version bump
+        run: |
+          git add VERSION Cargo.toml Cargo.lock CHANGELOG.md
+          git commit -m "chore: bump version to ${{ steps.bump_version.outputs.new_version }} [skip ci]" || echo "No changes to commit"
+
+      - name: Create and push tag
+        run: |
+          git tag -a "v${{ steps.bump_version.outputs.new_version }}" -m "Release version ${{ steps.bump_version.outputs.new_version }}"
+          git push origin main --tags
+
+      - name: Summary
+        run: |
+          echo "### Version Bump Complete! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Previous Version:** ${{ steps.current_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**New Version:** ${{ steps.bump_version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Tag \`v${{ steps.bump_version.outputs.new_version }}\` has been created and pushed." >> $GITHUB_STEP_SUMMARY
