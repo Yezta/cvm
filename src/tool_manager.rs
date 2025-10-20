@@ -945,11 +945,13 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
 
         // Create a proper config with all directories
-        let mut config = Config::default();
-        config.jcvm_dir = temp_dir.path().to_path_buf();
-        config.versions_dir = temp_dir.path().join("versions");
-        config.alias_dir = temp_dir.path().join("alias");
-        config.cache_dir = temp_dir.path().join("cache");
+        let config = Config {
+            jcvm_dir: temp_dir.path().to_path_buf(),
+            versions_dir: temp_dir.path().join("versions"),
+            alias_dir: temp_dir.path().join("alias"),
+            cache_dir: temp_dir.path().join("cache"),
+            ..Default::default()
+        };
 
         std::fs::create_dir_all(&config.versions_dir).unwrap();
         std::fs::create_dir_all(&config.alias_dir).unwrap();
@@ -990,8 +992,10 @@ mod tests {
     fn test_read_manifest_returns_none_for_missing_file() {
         let temp_dir = TempDir::new().unwrap();
 
-        let mut config = Config::default();
-        config.versions_dir = temp_dir.path().join("versions");
+        let config = Config {
+            versions_dir: temp_dir.path().join("versions"),
+            ..Default::default()
+        };
 
         let manager = ToolManager::new(config, PluginRegistry::default());
 
