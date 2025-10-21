@@ -216,7 +216,7 @@ enum Commands {
 
     /// Quickly switch tool versions using shorthand like java@21 or node@20
     Switch {
-        /// Target in the form <tool>@<version> (e.g., java@21, node@20.10.0)
+        /// Target in the form `<tool>@<version>` (e.g., java@21, node@20.10.0)
         target: String,
 
         /// Install the version automatically if missing before switching

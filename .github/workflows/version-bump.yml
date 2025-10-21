@@ -159,9 +159,13 @@ jobs:
           # Update VERSION file
           echo "${NEW_VERSION}" > VERSION
           
-          # Update Cargo.toml
-          sed -i.bak 's/^version = ".*"/version = "'"${NEW_VERSION}"'"/' Cargo.toml
-          rm -f Cargo.toml.bak
+          # Update Cargo.toml (cross-platform sed)
+          if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i.bak 's/^version = ".*"/version = "'"${NEW_VERSION}"'"/' Cargo.toml
+            rm -f Cargo.toml.bak
+          else
+            sed -i 's/^version = ".*"/version = "'"${NEW_VERSION}"'"/' Cargo.toml
+          fi
           
           echo "✅ Updated VERSION and Cargo.toml"
 
@@ -271,10 +275,16 @@ jobs:
                 cat /tmp/changelog_entry.md >> /tmp/changelog_new.md
               fi
             else
-              # Insert after header (typically first 5-7 lines)
-              head -n 7 CHANGELOG.md > /tmp/changelog_new.md 2>/dev/null || echo "# Changelog" > /tmp/changelog_new.md
-              cat /tmp/changelog_entry.md >> /tmp/changelog_new.md
-              tail -n +8 CHANGELOG.md >> /tmp/changelog_new.md 2>/dev/null || true
+              # Insert after header (dynamically detect header length)
+              FIRST_SECTION_LINE=$(grep -n "^## \[" CHANGELOG.md | head -1 | cut -d: -f1)
+              if [ -n "$FIRST_SECTION_LINE" ]; then
+                head -n $((FIRST_SECTION_LINE - 1)) CHANGELOG.md > /tmp/changelog_new.md
+                cat /tmp/changelog_entry.md >> /tmp/changelog_new.md
+                tail -n +${FIRST_SECTION_LINE} CHANGELOG.md >> /tmp/changelog_new.md
+              else
+                cp CHANGELOG.md /tmp/changelog_new.md
+                cat /tmp/changelog_entry.md >> /tmp/changelog_new.md
+              fi
             fi
             
             mv /tmp/changelog_new.md CHANGELOG.md
