@@ -68,7 +68,7 @@ jobs:
           fi
           
           # Append installation guide
-          cat >> /tmp/release_notes.md << 'EOF'
+          cat >> /tmp/release_notes.md << EOF
           
           ---
           

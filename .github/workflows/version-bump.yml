@@ -159,13 +159,8 @@ jobs:
           # Update VERSION file
           echo "${NEW_VERSION}" > VERSION
           
-          # Update Cargo.toml (cross-platform sed)
-          if [[ "$(uname)" == "Darwin" ]]; then
-            sed -i.bak 's/^version = ".*"/version = "'"${NEW_VERSION}"'"/' Cargo.toml
-            rm -f Cargo.toml.bak
-          else
-            sed -i 's/^version = ".*"/version = "'"${NEW_VERSION}"'"/' Cargo.toml
-          fi
+          # Update Cargo.toml
+          sed -i 's/^version = ".*"/version = "'"${NEW_VERSION}"'"/' Cargo.toml
           
           echo "✅ Updated VERSION and Cargo.toml"
 
