@@ -109,11 +109,11 @@ jobs:
           fi
           
           # Check for breaking changes (major)
-          if echo "$COMMITS" | grep -qiE "^BREAKING CHANGE:|^[a-z]+(\([a-z]+\))?!:"; then
+          if echo "$COMMITS" | grep -qiE "^BREAKING CHANGE:|^[a-z]+(\([^)]+\))?!:"; then
             echo "bump_type=major" >> $GITHUB_OUTPUT
             echo "⚠️ BREAKING CHANGE detected → major bump"
           # Check for features (minor)
-          elif echo "$COMMITS" | grep -qiE "^feat(\([a-z]+\))?:"; then
+          elif echo "$COMMITS" | grep -qiE "^feat(\([^)]+\))?:"; then
             echo "bump_type=minor" >> $GITHUB_OUTPUT
             echo "✨ Features detected → minor bump"
           # Default to patch
