@@ -63,7 +63,7 @@ jobs:
           fi
           
           COMMIT_MSG=$(git log -1 --pretty=%B)
-          if [[ "$COMMIT_MSG" =~ \[skip\ version\]|\[version\ skip\]|\[skip\ ci\] ]]; then
+          if [[ "$COMMIT_MSG" =~ (\[skip\ version\]|\[version\ skip\]|\[skip\ ci\]) ]]; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "⏭️ Skipping - found skip marker in commit message"
           else
