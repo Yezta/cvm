@@ -1,4 +1,4 @@
-name: Version Bump
+name: Version Management
 
 on:
   push:
@@ -12,17 +12,39 @@ on:
       - '**.md'
       - 'docs/**'
       - '.github/**'
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type (leave empty for auto-detection)'
+        required: false
+        type: choice
+        options:
+          - ''
+          - major
+          - minor
+          - patch
+        default: ''
+      create_tag:
+        description: 'Create and push git tag'
+        required: false
+        type: boolean
+        default: true
+      skip_changelog:
+        description: 'Skip changelog generation'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
-  bump-version:
-    name: Automatic Version Bump
+  version-bump:
+    name: Version Bump
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.bump_version.outputs.new_version }}
-      skipped: ${{ steps.check_skip.outputs.skip }}
+      version: ${{ steps.bump.outputs.new_version }}
+      skipped: ${{ steps.check.outputs.skip }}
     
     steps:
       - name: Checkout code
@@ -31,36 +53,53 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check if should skip
-        id: check_skip
+      # Check if we should skip (auto mode only)
+      - name: Check skip conditions
+        id: check
         run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "skip=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
           COMMIT_MSG=$(git log -1 --pretty=%B)
-          if [[ "$COMMIT_MSG" =~ \[skip\ version\]|\[version\ skip\] ]]; then
+          if [[ "$COMMIT_MSG" =~ \[skip\ version\]|\[version\ skip\]|\[skip\ ci\] ]]; then
             echo "skip=true" >> $GITHUB_OUTPUT
-            echo "Skipping version bump due to commit message"
+            echo "⏭️ Skipping - found skip marker in commit message"
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Configure Git
-        if: steps.check_skip.outputs.skip == 'false'
+        if: steps.check.outputs.skip == 'false'
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Get current version
-        if: steps.check_skip.outputs.skip == 'false'
-        id: current_version
+        if: steps.check.outputs.skip == 'false'
+        id: current
         run: |
-          CURRENT_VERSION=$(cat VERSION | tr -d '[:space:]')
-          echo "version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
-          echo "Current version: ${CURRENT_VERSION}"
+          CURRENT=$(cat VERSION | tr -d '[:space:]')
+          echo "version=${CURRENT}" >> $GITHUB_OUTPUT
+          echo "📦 Current version: ${CURRENT}"
 
-      - name: Determine bump type from commits
-        if: steps.check_skip.outputs.skip == 'false'
-        id: determine_bump
+      - name: Determine bump type
+        if: steps.check.outputs.skip == 'false'
+        id: determine
         run: |
-          # Get commits since last tag
+          # Manual mode - use input or default to patch
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUMP_TYPE="${{ inputs.bump_type }}"
+            if [ -z "$BUMP_TYPE" ]; then
+              BUMP_TYPE="patch"
+            fi
+            echo "bump_type=${BUMP_TYPE}" >> $GITHUB_OUTPUT
+            echo "🎯 Manual bump: ${BUMP_TYPE}"
+            exit 0
+          fi
+          
+          # Auto mode - analyze commits
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
           if [ -z "$LAST_TAG" ]; then
@@ -69,35 +108,263 @@ jobs:
             COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s" --no-merges)
           fi
           
-          # Check for breaking changes (major bump)
+          # Check for breaking changes (major)
           if echo "$COMMITS" | grep -qiE "^BREAKING CHANGE:|^[a-z]+(\([a-z]+\))?!:"; then
             echo "bump_type=major" >> $GITHUB_OUTPUT
-            echo "Detected BREAKING CHANGE - major version bump"
-          # Check for features (minor bump)
+            echo "⚠️ BREAKING CHANGE detected → major bump"
+          # Check for features (minor)
           elif echo "$COMMITS" | grep -qiE "^feat(\([a-z]+\))?:"; then
             echo "bump_type=minor" >> $GITHUB_OUTPUT
-            echo "Detected feature commits - minor version bump"
-          # Default to patch bump
+            echo "✨ Features detected → minor bump"
+          # Default to patch
           else
             echo "bump_type=patch" >> $GITHUB_OUTPUT
-            echo "No breaking changes or features - patch version bump"
+            echo "🐛 Changes detected → patch bump"
           fi
 
       - name: Bump version
-        if: steps.check_skip.outputs.skip == 'false'
-        id: bump_version
+        if: steps.check.outputs.skip == 'false'
+        id: bump
         run: |
-          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
-          BUMP_TYPE="${{ steps.determine_bump.outputs.bump_type }}"
+          CURRENT="${{ steps.current.outputs.version }}"
+          BUMP_TYPE="${{ steps.determine.outputs.bump_type }}"
           
-          # Parse semantic version
-          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          IFS='.' read -r major minor patch <<< "$CURRENT"
           
-          # Bump based on type
           case "$BUMP_TYPE" in
             major)
-              NEW_MAJOR=$((major + 1))
-              NEW_VERSION="${NEW_MAJOR}.0.0"
+              NEW_VERSION="$((major + 1)).0.0"
+              ;;
+            minor)
+              NEW_VERSION="${major}.$((minor + 1)).0"
+              ;;
+            patch)
+              NEW_VERSION="${major}.${minor}.$((patch + 1))"
+              ;;
+            *)
+              echo "❌ Invalid bump type: $BUMP_TYPE"
+              exit 1
+              ;;
+          esac
+          
+          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "bump_type=${BUMP_TYPE}" >> $GITHUB_OUTPUT
+          echo "📈 ${CURRENT} → ${NEW_VERSION} (${BUMP_TYPE})"
+
+      - name: Update version files
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          
+          # Update VERSION file
+          echo "${NEW_VERSION}" > VERSION
+          
+          # Update Cargo.toml
+          sed -i.bak 's/^version = ".*"/version = "'"${NEW_VERSION}"'"/' Cargo.toml
+          rm -f Cargo.toml.bak
+          
+          echo "✅ Updated VERSION and Cargo.toml"
+
+      - name: Install Rust toolchain
+        if: steps.check.outputs.skip == 'false'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Update Cargo.lock
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          cargo update -p jcvm || cargo update
+          echo "✅ Updated Cargo.lock"
+
+      - name: Generate changelog
+        if: steps.check.outputs.skip == 'false' && inputs.skip_changelog != true
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          BUMP_TYPE="${{ steps.bump.outputs.bump_type }}"
+          DATE=$(date +%Y-%m-%d)
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          # Determine commit range
+          if [ -z "$LAST_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="${LAST_TAG}..HEAD"
+          fi
+          
+          # Categorize commits using conventional commit format
+          BREAKING=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- [a-z]+!:|BREAKING CHANGE:" || true)
+          FEATURES=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- feat(\([^)]+\))?:" || true)
+          FIXES=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- fix(\([^)]+\))?:" || true)
+          DOCS=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- docs(\([^)]+\))?:" || true)
+          PERF=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- perf(\([^)]+\))?:" || true)
+          REFACTOR=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- refactor(\([^)]+\))?:" || true)
+          CHORE=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- chore(\([^)]+\))?:" || true)
+          
+          # Create changelog entry
+          {
+            echo ""
+            echo "## [${NEW_VERSION}] - ${DATE}"
+            
+            [ -n "$BREAKING" ] && {
+              echo ""
+              echo "### ⚠️ BREAKING CHANGES"
+              echo ""
+              echo "$BREAKING"
+            }
+            
+            [ -n "$FEATURES" ] && {
+              echo ""
+              echo "### ✨ Features"
+              echo ""
+              echo "$FEATURES"
+            }
+            
+            [ -n "$FIXES" ] && {
+              echo ""
+              echo "### 🐛 Bug Fixes"
+              echo ""
+              echo "$FIXES"
+            }
+            
+            [ -n "$PERF" ] && {
+              echo ""
+              echo "### ⚡ Performance"
+              echo ""
+              echo "$PERF"
+            }
+            
+            [ -n "$REFACTOR" ] && {
+              echo ""
+              echo "### ♻️ Refactoring"
+              echo ""
+              echo "$REFACTOR"
+            }
+            
+            [ -n "$DOCS" ] && {
+              echo ""
+              echo "### 📚 Documentation"
+              echo ""
+              echo "$DOCS"
+            }
+            
+            [ -n "$CHORE" ] && {
+              echo ""
+              echo "### 🔧 Maintenance"
+              echo ""
+              echo "$CHORE"
+            }
+          } > /tmp/changelog_entry.md
+          
+          # Insert into CHANGELOG.md
+          if [ -f CHANGELOG.md ]; then
+            # Find insertion point (after Unreleased section if it exists)
+            if grep -q "## \[Unreleased\]" CHANGELOG.md; then
+              LINE_NUM=$(grep -n "## \[Unreleased\]" CHANGELOG.md | head -1 | cut -d: -f1)
+              NEXT_SECTION=$(tail -n +$((LINE_NUM + 1)) CHANGELOG.md | grep -n "^## \[" | head -1 | cut -d: -f1)
+              
+              if [ -n "$NEXT_SECTION" ]; then
+                INSERT_LINE=$((LINE_NUM + NEXT_SECTION))
+                head -n $((INSERT_LINE - 1)) CHANGELOG.md > /tmp/changelog_new.md
+                cat /tmp/changelog_entry.md >> /tmp/changelog_new.md
+                tail -n +${INSERT_LINE} CHANGELOG.md >> /tmp/changelog_new.md
+              else
+                cp CHANGELOG.md /tmp/changelog_new.md
+                cat /tmp/changelog_entry.md >> /tmp/changelog_new.md
+              fi
+            else
+              # Insert after header (typically first 5-7 lines)
+              head -n 7 CHANGELOG.md > /tmp/changelog_new.md 2>/dev/null || echo "# Changelog" > /tmp/changelog_new.md
+              cat /tmp/changelog_entry.md >> /tmp/changelog_new.md
+              tail -n +8 CHANGELOG.md >> /tmp/changelog_new.md 2>/dev/null || true
+            fi
+            
+            mv /tmp/changelog_new.md CHANGELOG.md
+          else
+            # Create new changelog
+            echo "# Changelog" > CHANGELOG.md
+            cat /tmp/changelog_entry.md >> CHANGELOG.md
+          fi
+          
+          echo "✅ Updated CHANGELOG.md"
+
+      - name: Commit changes
+        if: steps.check.outputs.skip == 'false'
+        id: commit
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          BUMP_TYPE="${{ steps.bump.outputs.bump_type }}"
+          IS_MANUAL="${{ github.event_name == 'workflow_dispatch' }}"
+          
+          git add VERSION Cargo.toml Cargo.lock CHANGELOG.md
+          
+          if [ "$IS_MANUAL" = "true" ]; then
+            git commit -m "chore(release): manual ${BUMP_TYPE} bump to ${NEW_VERSION} [skip ci]
+
+          Manually triggered version bump via GitHub Actions.
+          Previous version: ${{ steps.current.outputs.version }}"
+          else
+            git commit -m "chore(release): bump version to ${NEW_VERSION} [skip ci]
+
+          Auto-detected ${BUMP_TYPE} version bump based on conventional commits."
+          fi
+          
+          echo "✅ Committed version changes"
+
+      - name: Create and push tag
+        if: steps.check.outputs.skip == 'false' && (github.event_name != 'workflow_dispatch' || inputs.create_tag)
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          
+          git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+          git push origin main
+          git push origin "v${NEW_VERSION}"
+          
+          echo "✅ Created and pushed tag v${NEW_VERSION}"
+
+      - name: Push without tag
+        if: steps.check.outputs.skip == 'false' && github.event_name == 'workflow_dispatch' && !inputs.create_tag
+        run: |
+          git push origin main
+          echo "✅ Pushed changes without tag"
+
+      - name: Generate summary
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          BUMP_TYPE="${{ steps.bump.outputs.bump_type }}"
+          CURRENT="${{ steps.current.outputs.version }}"
+          TAGGED="${{ (github.event_name != 'workflow_dispatch' || inputs.create_tag) }}"
+          
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🎉 Version Bump Complete!
+          
+          | | |
+          |---|---|
+          | **Type** | \`${BUMP_TYPE}\` |
+          | **Previous** | \`${CURRENT}\` |
+          | **New** | \`${NEW_VERSION}\` |
+          | **Tagged** | $([ "$TAGGED" = "true" ] && echo "✅ Yes" || echo "❌ No") |
+          
+          ### 📝 Changes
+          - ✅ Updated \`VERSION\` file
+          - ✅ Updated \`Cargo.toml\`
+          - ✅ Updated \`Cargo.lock\`
+          - ✅ Updated \`CHANGELOG.md\`
+          
+          EOF
+          
+          if [ "$TAGGED" = "true" ]; then
+            echo "### 🚀 Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "The **Release** workflow will automatically build and publish binaries for tag \`v${NEW_VERSION}\`." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Skipped summary
+        if: steps.check.outputs.skip == 'true'
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ⏭️ Version Bump Skipped
+          
+          Version bump was skipped due to \`[skip version]\` or \`[skip ci]\` in the commit message.
+          EOF
               ;;
             minor)
               NEW_MINOR=$((minor + 1))
