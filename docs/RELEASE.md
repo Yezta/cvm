@@ -433,3 +433,91 @@ When reporting a release issue, please include:
 - **Rust Cross-Compilation**: https://rust-lang.github.io/rustup/cross-compilation.html
 - **Version Management Guide**: [docs/VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md)
 - **Architecture Documentation**: [docs/ARCHITECTURE.md](ARCHITECTURE.md)
+
+## Workflow Implementation Details
+
+### Automated Workflows Overview
+
+JCVM uses three main workflows for version and release management:
+
+#### 1. Automatic Version Bump (`version-bump.yml`)
+
+**Trigger:** Push to `main` branch
+
+**Features:**
+
+- **Conventional Commits Support**: Automatically detects version bump type
+  - `feat:` → Minor version bump (1.0.0 → 1.1.0)
+  - `fix:` → Patch version bump (1.0.0 → 1.0.1)
+  - `BREAKING CHANGE:` or `!:` → Major version bump (1.0.0 → 2.0.0)
+- **Smart Changelog**: Categorizes commits with emojis:
+  - ⚠️ BREAKING CHANGES
+  - ✨ Features
+  - 🐛 Bug Fixes
+  - 📚 Documentation
+  - 🔧 Chores
+- **Automatic Tagging**: Creates and pushes version tags
+- **Skip Option**: Use `[skip version]` in commit message to skip
+
+**Example Commit Messages:**
+
+```bash
+feat: add Node.js plugin support      # → Minor bump (1.0.0 → 1.1.0)
+fix: resolve installation path issue  # → Patch bump (1.0.0 → 1.0.1)
+feat!: redesign CLI interface         # → Major bump (1.0.0 → 2.0.0)
+```
+
+#### 2. Release Workflow (`release.yml`)
+
+**Trigger:** Version tags (`v*.*.*`)
+
+**Jobs:**
+
+1. **create-release**: Creates GitHub release with changelog extraction
+2. **build-release**: Builds binaries for all platforms in parallel
+3. **post-release**: Creates summary and cleanup
+
+**Optimizations:**
+
+- Uses `Swatinem/rust-cache@v2` for intelligent Rust caching (50-70% faster builds)
+- Modern `softprops/action-gh-release@v1` action for reliable releases
+- Parallel matrix builds across all platforms
+- SHA256 checksums automatically generated
+- Professional release notes with installation instructions
+
+#### 3. Manual Version Bump (`manual-version-bump.yml`)
+
+**Trigger:** Manual workflow dispatch
+
+**Use Cases:**
+
+- Emergency version bumps
+- Release candidates
+- Testing release process
+- Manual control over versioning
+
+**Options:**
+
+- `bump_type`: major, minor, or patch
+- `create_tag`: Whether to create git tag (default: true)
+
+### Workflow Best Practices
+
+1. **Use Conventional Commits**: For automatic semantic versioning
+2. **Keep Changelog Updated**: Uses Keep a Changelog format
+3. **Test Before Release**: CI runs full test suite before releasing
+4. **Verify Checksums**: Always provided for security
+5. **Cache Efficiently**: Smart caching reduces build times significantly
+
+### Recent Workflow Improvements (October 2025)
+
+- ✅ Upgraded to modern GitHub Actions (no deprecated actions)
+- ✅ Implemented conventional commits for automatic versioning
+- ✅ Added intelligent Rust caching for faster builds
+- ✅ Enhanced changelog with emoji categorization
+- ✅ Improved release notes with dynamic content extraction
+- ✅ Added parallel builds for all platforms
+- ✅ Implemented proper permissions and security practices
+
+For detailed workflow architecture and migration notes, see the commit history and workflow files in `.github/workflows/`.
+

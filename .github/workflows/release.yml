@@ -2,153 +2,181 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/pull_request_template.md'
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to release (leave empty to use VERSION file)'
-        required: false
+      tag:
+        description: 'Tag to release (e.g., v1.0.0)'
+        required: true
         type: string
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
+permissions:
+  contents: write
+
 jobs:
-  prepare-release:
-    name: Prepare Release
+  create-release:
+    name: Create Release
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Determine version
-        id: version
+      - name: Get version from tag
+        id: get_version
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
           else
-            VERSION=$(cat VERSION | tr -d '[:space:]')
+            VERSION="${GITHUB_REF#refs/tags/}"
           fi
+          # Remove 'v' prefix if present
+          VERSION="${VERSION#v}"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Release version: ${VERSION}"
+          echo "Version: ${VERSION}"
 
-      - name: Check if tag exists
-        id: check_tag
+      - name: Extract changelog for version
+        id: changelog
         run: |
-          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+          VERSION="${{ steps.get_version.outputs.version }}"
+          
+          # Extract changelog for this version
+          if [ -f CHANGELOG.md ]; then
+            # Find the section for this version
+            START_LINE=$(grep -n "## \[${VERSION}\]" CHANGELOG.md | head -1 | cut -d: -f1 || echo "0")
+            
+            if [ "$START_LINE" != "0" ]; then
+              # Find the next version section
+              NEXT_LINE=$(tail -n +$((START_LINE + 1)) CHANGELOG.md | grep -n "^## \[" | head -1 | cut -d: -f1 || echo "")
+              
+              if [ -n "$NEXT_LINE" ]; then
+                END_LINE=$((START_LINE + NEXT_LINE - 1))
+                sed -n "${START_LINE},${END_LINE}p" CHANGELOG.md > /tmp/release_notes.md
+              else
+                tail -n +${START_LINE} CHANGELOG.md > /tmp/release_notes.md
+              fi
+            else
+              echo "## Changes" > /tmp/release_notes.md
+              echo "" >> /tmp/release_notes.md
+              echo "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details." >> /tmp/release_notes.md
+            fi
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "## Changes" > /tmp/release_notes.md
+            echo "" >> /tmp/release_notes.md
+            echo "Release v${VERSION}" >> /tmp/release_notes.md
           fi
+          
+          # Append installation instructions
+          cat >> /tmp/release_notes.md << 'EOF'
+          
+          ---
+          
+          ## 📦 Installation
+          
+          ### Quick Install (Linux/macOS)
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.sh | bash
+          ```
+          
+          ### Manual Installation
+          
+          1. Download the appropriate binary for your platform below
+          2. Extract the archive
+          3. Move the \`jcvm\` binary to a directory in your PATH
+          4. Make it executable (Unix): \`chmod +x jcvm\`
+          5. Run \`jcvm shell-init\` to set up shell integration
+          
+          ### 🎯 Platform Downloads
+          
+          | Platform | Architecture | Download |
+          |----------|--------------|----------|
+          | macOS | Apple Silicon (M1/M2/M3) | \`jcvm-v${{ steps.get_version.outputs.version }}-aarch64-apple-darwin.tar.gz\` |
+          | macOS | Intel (x86_64) | \`jcvm-v${{ steps.get_version.outputs.version }}-x86_64-apple-darwin.tar.gz\` |
+          | Linux | x86_64 | \`jcvm-v${{ steps.get_version.outputs.version }}-x86_64-unknown-linux-gnu.tar.gz\` |
+          | Linux | ARM64 | \`jcvm-v${{ steps.get_version.outputs.version }}-aarch64-unknown-linux-gnu.tar.gz\` |
+          | Windows | x86_64 | \`jcvm-v${{ steps.get_version.outputs.version }}-x86_64-pc-windows-msvc.zip\` |
+          
+          ### 🔐 Verify Downloads
+          
+          SHA256 checksums are provided for each download. Verify with:
+          ```bash
+          sha256sum -c jcvm-v${{ steps.get_version.outputs.version }}-<platform>.sha256
+          ```
+          
+          ## 🚀 Getting Started
+          
+          ```bash
+          # Initialize shell integration
+          jcvm shell-init
+          
+          # Reload your shell or source your rc file
+          source ~/.zshrc  # or ~/.bashrc
+          
+          # Install tools
+          jcvm install --tool java 21
+          jcvm install --tool node 20
+          jcvm install --tool python 3.12
+          
+          # Switch versions
+          jcvm use --tool java 21
+          ```
+          
+          For more information, visit the [documentation](https://github.com/${{ github.repository }}).
+          EOF
 
-      - name: Create Release
+      - name: Create GitHub Release
         id: create_release
-        if: steps.check_tag.outputs.exists == 'false'
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.version.outputs.version }}
-          release_name: JCVM v${{ steps.version.outputs.version }}
-          body: |
-            # JCVM v${{ steps.version.outputs.version }}
-            
-            Universal Development Tool Version Manager
-            
-            ## Installation
-            
-            ### Quick Install (Linux/macOS)
-            ```bash
-            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.sh | bash
-            ```
-            
-            ### Manual Install
-            
-            1. Download the appropriate binary for your platform below
-            2. Extract the archive
-            3. Move the `jcvm` binary to a directory in your PATH (e.g., `/usr/local/bin` or `~/.local/bin`)
-            4. Make it executable: `chmod +x jcvm` (Linux/macOS only)
-            5. Run `jcvm shell-init` to set up shell integration
-            
-            ### Platform-specific Downloads
-            
-            - **macOS (Apple Silicon)**: `jcvm-v${{ steps.version.outputs.version }}-aarch64-apple-darwin.tar.gz`
-            - **macOS (Intel)**: `jcvm-v${{ steps.version.outputs.version }}-x86_64-apple-darwin.tar.gz`
-            - **Linux (x86_64)**: `jcvm-v${{ steps.version.outputs.version }}-x86_64-unknown-linux-gnu.tar.gz`
-            - **Linux (ARM64)**: `jcvm-v${{ steps.version.outputs.version }}-aarch64-unknown-linux-gnu.tar.gz`
-            - **Windows (x86_64)**: `jcvm-v${{ steps.version.outputs.version }}-x86_64-pc-windows-msvc.zip`
-            
-            ## What's New
-            
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-            
-            ## Getting Started
-            
-            After installation:
-            ```bash
-            # Set up shell integration
-            jcvm shell-init
-            
-            # Reload your shell
-            source ~/.zshrc  # or ~/.bashrc
-            
-            # Install a tool
-            jcvm install --tool java 21
-            jcvm install --tool node 20
-            jcvm install --tool python 3.12
-            
-            # Use a version
-            jcvm use --tool java 21
-            ```
-            
-            For more information, visit the [documentation](https://github.com/${{ github.repository }}).
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: JCVM v${{ steps.get_version.outputs.version }}
+          body_path: /tmp/release_notes.md
           draft: false
           prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build:
-    name: Build - ${{ matrix.target }}
-    needs: prepare-release
-    if: needs.prepare-release.outputs.upload_url != ''
-    runs-on: ${{ matrix.os }}
+  build-release:
+    name: Build - ${{ matrix.platform.name }}
+    needs: create-release
+    runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # macOS builds
-          - target: x86_64-apple-darwin
+        platform:
+          - name: macOS (Apple Silicon)
             os: macos-latest
+            target: aarch64-apple-darwin
             cross: false
             archive: tar.gz
-          - target: aarch64-apple-darwin
+          - name: macOS (Intel)
             os: macos-latest
+            target: x86_64-apple-darwin
             cross: false
             archive: tar.gz
-          
-          # Linux builds
-          - target: x86_64-unknown-linux-gnu
+          - name: Linux (x86_64)
             os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
             cross: false
             archive: tar.gz
-          - target: aarch64-unknown-linux-gnu
+          - name: Linux (ARM64)
             os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
             cross: true
             archive: tar.gz
-          
-          # Windows builds
-          - target: x86_64-pc-windows-msvc
+          - name: Windows (x86_64)
             os: windows-latest
+            target: x86_64-pc-windows-msvc
             cross: false
             archive: zip
 
@@ -156,70 +184,50 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.platform.target }}
 
       - name: Install cross-compilation tools
-        if: matrix.cross
+        if: matrix.platform.cross
         run: cargo install cross --git https://github.com/cross-rs/cross
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
-
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-git-
-
-      - name: Cache target directory
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-${{ matrix.target }}-target-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.target }}-target-
+          key: ${{ matrix.platform.target }}
+          cache-on-failure: true
 
       - name: Build binary
         shell: bash
         run: |
-          if [ "${{ matrix.cross }}" = "true" ]; then
-            cross build --release --target ${{ matrix.target }}
+          if [ "${{ matrix.platform.cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.platform.target }}
           else
-            cargo build --release --target ${{ matrix.target }}
+            cargo build --release --target ${{ matrix.platform.target }}
           fi
 
-      - name: Strip binary (Linux/macOS)
-        if: matrix.os != 'windows-latest'
+      - name: Strip binary (Unix)
+        if: matrix.platform.os != 'windows-latest'
         shell: bash
         run: |
-          strip target/${{ matrix.target }}/release/jcvm || true
+          strip target/${{ matrix.platform.target }}/release/jcvm || true
 
-      - name: Prepare archive (Unix)
-        if: matrix.archive == 'tar.gz'
+      - name: Create Unix archive
+        if: matrix.platform.archive == 'tar.gz'
         shell: bash
         run: |
-          VERSION="${{ needs.prepare-release.outputs.version }}"
-          ARCHIVE_NAME="jcvm-v${VERSION}-${{ matrix.target }}"
+          VERSION="${{ needs.create-release.outputs.version }}"
+          TARGET="${{ matrix.platform.target }}"
+          ARCHIVE_NAME="jcvm-v${VERSION}-${TARGET}"
+          
           mkdir -p "${ARCHIVE_NAME}"
+          cp "target/${TARGET}/release/jcvm" "${ARCHIVE_NAME}/"
+          cp README.md LICENSE CHANGELOG.md "${ARCHIVE_NAME}/" 2>/dev/null || true
           
-          # Copy binary
-          cp "target/${{ matrix.target }}/release/jcvm" "${ARCHIVE_NAME}/"
-          
-          # Copy documentation
-          cp README.md LICENSE CHANGELOG.md "${ARCHIVE_NAME}/" || true
-          
-          # Create install script for Unix systems
-          cat > "${ARCHIVE_NAME}/install.sh" << 'EOF'
+          # Create install script
+          cat > "${ARCHIVE_NAME}/install.sh" << 'EOFINSTALL'
           #!/usr/bin/env bash
           set -e
           
@@ -237,33 +245,29 @@ jobs:
           echo "  1. Ensure ${INSTALL_DIR} is in your PATH"
           echo "  2. Run: jcvm shell-init"
           echo "  3. Reload your shell"
-          echo ""
-          echo "For help: jcvm --help"
-          EOF
+          EOFINSTALL
           chmod +x "${ARCHIVE_NAME}/install.sh"
           
-          # Create tarball
           tar czf "${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}"
-          echo "ARCHIVE_PATH=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
-          echo "ARCHIVE_NAME=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
+          sha256sum "${ARCHIVE_NAME}.tar.gz" > "${ARCHIVE_NAME}.tar.gz.sha256"
+          
+          echo "ASSET_PATH=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
+          echo "CHECKSUM_PATH=${ARCHIVE_NAME}.tar.gz.sha256" >> $GITHUB_ENV
 
-      - name: Prepare archive (Windows)
-        if: matrix.archive == 'zip'
+      - name: Create Windows archive
+        if: matrix.platform.archive == 'zip'
         shell: pwsh
         run: |
-          $VERSION = "${{ needs.prepare-release.outputs.version }}"
-          $ARCHIVE_NAME = "jcvm-v${VERSION}-${{ matrix.target }}"
+          $VERSION = "${{ needs.create-release.outputs.version }}"
+          $TARGET = "${{ matrix.platform.target }}"
+          $ARCHIVE_NAME = "jcvm-v${VERSION}-${TARGET}"
           
           New-Item -ItemType Directory -Force -Path $ARCHIVE_NAME
-          
-          # Copy binary
-          Copy-Item "target/${{ matrix.target }}/release/jcvm.exe" "$ARCHIVE_NAME/"
-          
-          # Copy documentation
+          Copy-Item "target/${TARGET}/release/jcvm.exe" "$ARCHIVE_NAME/"
           Copy-Item README.md, LICENSE, CHANGELOG.md "$ARCHIVE_NAME/" -ErrorAction SilentlyContinue
           
-          # Create install script for Windows
-          @"
+          # Create install script
+          @'
           @echo off
           setlocal
           
@@ -280,48 +284,29 @@ jobs:
           echo   1. Ensure %INSTALL_DIR% is in your PATH
           echo   2. Run: jcvm shell-init
           echo   3. Reload your shell
-          echo.
-          echo For help: jcvm --help
-          "@ | Out-File -FilePath "$ARCHIVE_NAME\install.bat" -Encoding ASCII
+          '@ | Out-File -FilePath "$ARCHIVE_NAME\install.bat" -Encoding ASCII
           
-          # Create zip
           Compress-Archive -Path $ARCHIVE_NAME -DestinationPath "$ARCHIVE_NAME.zip"
-          echo "ARCHIVE_PATH=$ARCHIVE_NAME.zip" >> $env:GITHUB_ENV
-          echo "ARCHIVE_NAME=$ARCHIVE_NAME.zip" >> $env:GITHUB_ENV
+          (Get-FileHash -Algorithm SHA256 "$ARCHIVE_NAME.zip").Hash.ToLower() + "  $ARCHIVE_NAME.zip" | Out-File -FilePath "$ARCHIVE_NAME.zip.sha256" -Encoding ASCII -NoNewline
+          
+          echo "ASSET_PATH=$ARCHIVE_NAME.zip" >> $env:GITHUB_ENV
+          echo "CHECKSUM_PATH=$ARCHIVE_NAME.zip.sha256" >> $env:GITHUB_ENV
 
-      - name: Generate checksums
-        shell: bash
-        run: |
-          if [ "${{ matrix.archive }}" = "tar.gz" ]; then
-            sha256sum "${{ env.ARCHIVE_NAME }}" > "${{ env.ARCHIVE_NAME }}.sha256"
-          else
-            sha256sum "${{ env.ARCHIVE_NAME }}" > "${{ env.ARCHIVE_NAME }}.sha256"
-          fi
-
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.create-release.outputs.version }}
+          files: |
+            ${{ env.ASSET_PATH }}
+            ${{ env.CHECKSUM_PATH }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
-          asset_path: ./${{ env.ARCHIVE_NAME }}
-          asset_name: ${{ env.ARCHIVE_NAME }}
-          asset_content_type: application/octet-stream
 
-      - name: Upload Checksum
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
-          asset_path: ./${{ env.ARCHIVE_NAME }}.sha256
-          asset_name: ${{ env.ARCHIVE_NAME }}.sha256
-          asset_content_type: text/plain
-
-  update-install-script:
-    name: Update Install Script URLs
-    needs: [prepare-release, build]
+  post-release:
+    name: Post-Release Tasks
+    needs: [create-release, build-release]
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -329,20 +314,26 @@ jobs:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update install.sh with release URL
+      - name: Create release summary
         run: |
-          VERSION="${{ needs.prepare-release.outputs.version }}"
-          REPO="${{ github.repository }}"
+          VERSION="${{ needs.create-release.outputs.version }}"
           
-          # Update the default REPO_URL in install.sh if it has placeholder
-          sed -i "s|REPO_URL=\"\${REPO_URL:-https://github.com/Yezta/cvm.git}\"|REPO_URL=\"\${REPO_URL:-https://github.com/${REPO}.git}\"|g" scripts/install.sh || true
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🎉 Release v${VERSION} Published!
           
-          echo "Install script updated for release v${VERSION}"
-
-      - name: Commit changes
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add scripts/install.sh || true
-          git diff --staged --quiet || git commit -m "chore: update install script for release v${{ needs.prepare-release.outputs.version }}" || true
-          git push || true
+          ### 📦 Artifacts Built
+          - ✅ macOS (Apple Silicon)
+          - ✅ macOS (Intel)
+          - ✅ Linux (x86_64)
+          - ✅ Linux (ARM64)
+          - ✅ Windows (x86_64)
+          
+          ### 🔗 Links
+          - [Release Page](https://github.com/${{ github.repository }}/releases/tag/v${VERSION})
+          - [Changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+          
+          ### 📥 Quick Install
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/install.sh | bash
+          \`\`\`
+          EOF
