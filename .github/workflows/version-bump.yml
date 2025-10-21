@@ -190,7 +190,7 @@ jobs:
           fi
           
           # Categorize commits using conventional commit format
-          BREAKING=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- [a-z]+!:|BREAKING CHANGE:" || true)
+          BREAKING=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- [a-z]+(\([^)]+\))?!:|BREAKING CHANGE:" || true)
           FEATURES=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- feat(\([^)]+\))?:" || true)
           FIXES=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- fix(\([^)]+\))?:" || true)
           DOCS=$(git log $RANGE --pretty=format:"- %s (%h)" --no-merges | grep -iE "^- docs(\([^)]+\))?:" || true)
