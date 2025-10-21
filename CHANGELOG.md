@@ -103,3 +103,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update command to upgrade JCVM itself
 - Cache management commands
 - Checksum verification for downloads
+
+## [2.1.0] - 2025-10-21
+
+### ✨ Features
+
+- feat: streamline GitHub Actions workflows for version management and releases (c8e8499)
+- feat: enhance automated workflows for versioning and releases (54266b8)
+
+### 🐛 Bug Fixes
+
+- fix: simplify Cargo.toml update process in version bump workflow (b21bf2a)
+- fix: improve comments for clarity in version bump workflow and CLI tool commands (d8e5786)
+- fix: correct output format for coverage report and enhance release summary message (c64634c)
+
+### 🔧 Maintenance
+
+- chore: track Cargo.lock for reproducible builds (b555a6e)
