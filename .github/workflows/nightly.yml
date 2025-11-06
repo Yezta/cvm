@@ -160,7 +160,7 @@ jobs:
           Built: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')
           Target: $TARGET
           
-          WARNING: This is a nightly build from the latest development code.
+          ⚠️ This is a nightly build from the latest development code.
           It may contain bugs and experimental features. Use at your own risk.
           
           For stable releases, visit:
