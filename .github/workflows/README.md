@@ -151,11 +151,11 @@ Following Tabby's approach, we use comprehensive platform matrices:
 ### CI Testing
 
 | Platform | Target | Integration Tests |
-|----------|--------|------------------|
-| macOS (latest) | Apple Silicon | ✅ |
-| macOS (latest) | Intel | ✅ |
-| Linux (ubuntu) | x86_64 | ✅ |
-| Windows (latest) | x86_64 | ❌ (smoke tests only) |
+|----------|--------------------------|------------------|
+| macOS (latest) | `aarch64-apple-darwin` | ✅ |
+| macOS (latest) | `x86_64-apple-darwin` | ✅ |
+| Linux (ubuntu) | `x86_64-unknown-linux-gnu` | ✅ |
+| Windows (latest) | `x86_64-pc-windows-msvc` | ❌ (smoke tests only) |
 
 ## 🔧 Key Technologies & Actions
 
