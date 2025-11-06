@@ -338,7 +338,7 @@ gh actions list-outdated
 
 ---
 
-**Note**: This workflow setup is inspired by and adapts patterns from the [Tabby Terminal](https://github.com/Eugeny/tabby) project, which has one of the most comprehensive CI/CD setups for cross-platform Rust applications. The workflow system has been optimized from 4 separate workflows to 3 focused, efficient workflows.
+**Note**: This workflow setup is inspired by and adapts patterns from the [Tabby Terminal](https://github.com/Eugeny/tabby) project, which has one of the most comprehensive CI/CD setups for cross-platform Rust applications. The workflow system now consists of 6 focused, efficient workflows: `ci.yml`, `release.yml`, `nightly.yml`, `codeql.yml`, `docs.yml`, and `version-bump.yml`.
 
 ## 🔄 Workflows Overview
 
