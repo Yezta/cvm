@@ -1,6 +1,6 @@
 [package]
 name = "jcvm"
-version = "2.1.0"
+version = "2.1.1"
 edition = "2021"
 authors = ["JCVM Contributors"]
 description = "Java Configuration & Version Manager - A fast, secure JDK version manager"

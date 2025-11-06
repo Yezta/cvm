@@ -104,6 +104,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cache management commands
 - Checksum verification for downloads
 
+
+## [2.1.1] - 2025-11-06
+
+### ✨ Features
+
+- feat: enhance GitHub Actions workflows with detailed documentation and improved CI/CD processes (d6931de)
+
+### 📚 Documentation
+
+- docs: update README.md to clarify differences between JCVM and Tabby workflows (4ab83b0)
 ## [2.1.0] - 2025-10-21
 
 ### ✨ Features
