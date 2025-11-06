@@ -37,8 +37,6 @@ jobs:
       - name: Build documentation
         run: |
           cargo doc --no-deps --all-features --document-private-items
-        env:
-          RUSTDOCFLAGS: --cfg docsrs
 
       - name: Add index redirect
         run: |
