@@ -1,8 +1,33 @@
 # GitHub Actions Workflows
 
-# GitHub Actions Workflows
+This directory contains all GitHub Actions workflows for the JCVM project. These workflows are inspired by and adapted from the excellent CI/CD setup in [Tabby Terminal](https://github.com/Eugeny/tabby).
 
-This directory contains all GitHub Actions workflows for the JCVM project. These workflows are inspired by the excellent CI/CD setup from [Tabby Terminal](https://github.com/Eugeny/tabby).
+## 🔄 How This Differs from Tabby
+
+While we've adopted many patterns from Tabby, our workflow architecture differs to better suit a Rust CLI project:
+
+**Tabby's Approach** (TypeScript/Electron):
+- Single `build.yml` handles both CI testing AND release builds (triggered on tags)
+- Simple `release.yml` just creates GitHub release draft
+- Builds TypeScript/Electron with Node.js/yarn/webpack
+- Uses Firebase for documentation hosting
+
+**JCVM's Approach** (Rust CLI):
+- **Separation of Concerns**: `ci.yml` for testing, `release.yml` for release artifacts
+- `ci.yml` runs on every push/PR for fast feedback
+- `release.yml` only runs on version tags to build optimized release binaries
+- Pure Rust toolchain: cargo, rustup, cross-compilation
+- GitHub Pages for documentation (more accessible for open source)
+- Additional `nightly.yml` for bleeding-edge builds
+- `version-bump.yml` helper for automated version management
+
+**Why We Differ**:
+1. **Faster CI**: Test builds don't need release optimizations
+2. **Cleaner Separation**: CI testing vs production release building are distinct concerns
+3. **Resource Efficiency**: Don't build release artifacts on every commit
+4. **Better DX**: Developers get faster feedback from lightweight CI builds
+
+Both approaches are valid - Tabby's works great for Electron apps, ours is optimized for Rust CLI tools.
 
 ## 📋 Workflow Overview
 
