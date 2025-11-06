@@ -1,6 +1,319 @@
 # GitHub Actions Workflows
 
-This directory contains streamlined CI/CD workflows for JCVM. The workflow system has been optimized from 4 separate workflows to 3 focused, efficient workflows.
+# GitHub Actions Workflows
+
+This directory contains all GitHub Actions workflows for the JCVM project. These workflows are inspired by the excellent CI/CD setup from [Tabby Terminal](https://github.com/Eugeny/tabby).
+
+## 📋 Workflow Overview
+
+### Core Workflows
+
+#### `ci.yml` - Continuous Integration
+**Trigger**: Push and Pull Requests to `main`, `develop`, and `feat/*` branches
+
+Comprehensive CI pipeline that includes:
+- **Lint Job**: Fast formatting and clippy checks (runs first)
+- **Code Quality**: Documentation checks and static analysis
+- **Cross-Platform Testing**: 
+  - macOS (Apple Silicon + Intel)
+  - Linux (x86_64)
+  - Windows (x86_64)
+- **Security Audit**: Dependency vulnerability scanning
+- **Code Coverage**: Test coverage reporting with Codecov
+- **Integration Tests**: Platform-specific smoke tests
+
+**Key Features**:
+- Parallel job execution for faster feedback
+- Smart caching with `Swatinem/rust-cache`
+- Separate lint job that runs before tests
+- Platform-specific build targets
+- Artifact uploads on test failures
+
+---
+
+#### `release.yml` - Release Builds
+**Trigger**: Git tags matching `v*.*.*` pattern or manual dispatch
+
+Production release workflow that:
+- Creates GitHub releases with auto-generated notes
+- Builds binaries for multiple platforms:
+  - **macOS**: Apple Silicon (aarch64) + Intel (x86_64)
+  - **Linux**: x86_64, ARM64, ARMv7
+  - **Windows**: x86_64
+- Generates SHA256 checksums for all artifacts
+- Includes installation scripts in archives
+- Supports cross-compilation for ARM targets
+
+**Artifacts**:
+- `.tar.gz` for Unix platforms (includes install.sh)
+- `.zip` for Windows (includes install.bat)
+- `.sha256` checksum files for verification
+
+---
+
+#### `nightly.yml` - Nightly Builds
+**Trigger**: 
+- Daily at 2 AM UTC (cron)
+- Push to `main` branch
+- Manual dispatch
+
+Builds nightly development versions:
+- Same platform matrix as releases
+- Version format: `{version}-nightly+{sha}`
+- Includes `NIGHTLY_INFO.txt` with build details
+- Artifacts retained for 30 days
+- **Accessible via nightly.link**: https://nightly.link/{owner}/jcvm/workflows/nightly/main
+
+**Warning**: Nightly builds are experimental and may contain bugs!
+
+---
+
+#### `codeql.yml` - Security Analysis
+**Trigger**:
+- Push and Pull Requests to `main` and `develop`
+- Weekly on Mondays at 9 AM UTC
+- Manual dispatch
+
+Security scanning with:
+- **CodeQL Analysis**: Advanced semantic code analysis
+- **Dependency Review**: Checks for vulnerable dependencies in PRs
+- **Security Audit**: Runs `cargo audit` for known CVEs
+- Automatic security alerts and reporting
+
+**Permissions**: Requires `security-events: write` for alerts
+
+---
+
+#### `docs.yml` - Documentation
+**Trigger**:
+- Push to `main` branch
+- Manual dispatch
+
+Builds and deploys Rust documentation:
+- Generates rustdoc with `--document-private-items`
+- Deploys to GitHub Pages
+- Auto-redirect from root to crate documentation
+- URL: `https://{owner}.github.io/jcvm`
+
+---
+
+#### `version-bump.yml` - Version Management
+**Trigger**: Manual dispatch with version input
+
+Automates version bumping:
+- Updates version in `Cargo.toml`
+- Updates `VERSION` file
+- Creates commit and tag
+- Pushes changes to trigger release workflow
+
+---
+
+## 🏗️ Build Matrix Strategy
+
+Following Tabby's approach, we use comprehensive platform matrices:
+
+### Release & Nightly Builds
+
+| Platform | Architecture | Target Triple | Cross-Compile |
+|----------|-------------|---------------|---------------|
+| macOS | Apple Silicon | `aarch64-apple-darwin` | No |
+| macOS | Intel | `x86_64-apple-darwin` | No |
+| Linux | x86_64 | `x86_64-unknown-linux-gnu` | No |
+| Linux | ARM64 | `aarch64-unknown-linux-gnu` | Yes |
+| Linux | ARMv7 | `armv7-unknown-linux-gnueabihf` | Yes |
+| Windows | x86_64 | `x86_64-pc-windows-msvc` | No |
+
+### CI Testing
+
+| Platform | Target | Integration Tests |
+|----------|--------|------------------|
+| macOS (latest) | Apple Silicon | ✅ |
+| macOS (latest) | Intel | ✅ |
+| Linux (ubuntu) | x86_64 | ✅ |
+| Windows (latest) | x86_64 | ❌ (smoke tests only) |
+
+## 🔧 Key Technologies & Actions
+
+### Rust Tooling
+- **dtolnay/rust-toolchain**: Rust toolchain management
+- **Swatinem/rust-cache**: Fast, smart Cargo caching
+- **taiki-e/install-action**: Cross-compilation tools
+- **rustsec/audit-check**: Security auditing
+
+### CI/CD Actions
+- **actions/checkout@v4**: Repository checkout
+- **actions/upload-artifact@v4**: Artifact management
+- **softprops/action-gh-release@v2**: Release creation
+- **codecov/codecov-action@v4**: Coverage reporting
+- **github/codeql-action@v3**: Security analysis
+
+### Build Tools
+- **cross**: Cross-compilation for ARM targets
+- **cargo-tarpaulin**: Code coverage collection
+- **strip**: Binary size optimization (Unix)
+
+## 🚀 Usage Examples
+
+### Triggering Workflows
+
+**Create a Release**:
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+**Manual Release** (via GitHub UI):
+1. Go to Actions → Release
+2. Click "Run workflow"
+3. Enter tag (e.g., `v1.0.0`)
+
+**Force Nightly Build**:
+```bash
+# Push to main triggers nightly
+git push origin main
+
+# Or via GitHub Actions UI
+```
+
+### Downloading Artifacts
+
+**Latest Release**:
+```bash
+curl -fsSL https://raw.githubusercontent.com/{owner}/jcvm/main/scripts/install.sh | bash
+```
+
+**Nightly Builds** (via nightly.link):
+```bash
+# Visit: https://nightly.link/{owner}/jcvm/workflows/nightly/main
+# Download artifacts for your platform
+```
+
+**Manual Download**:
+1. Go to Actions → Select workflow run
+2. Scroll to "Artifacts" section
+3. Download platform-specific archive
+
+## 📊 Workflow Dependencies
+
+```
+Lint (fast checks)
+  ├─> Code Quality
+  └─> Tests (parallel per platform)
+        └─> Coverage
+              └─> CI Success Gate
+
+Release Creation
+  └─> Build Binaries (parallel per platform)
+        └─> Upload to Release
+              └─> Finalize
+
+Nightly
+  └─> Build Artifacts (parallel per platform)
+        └─> Upload Artifacts
+              └─> Summary
+
+CodeQL Analysis (parallel)
+Security Audit (parallel)
+Dependency Review (PRs only)
+  └─> Security Summary
+```
+
+## 🔐 Required Secrets
+
+### Optional (for enhanced features):
+- `CODECOV_TOKEN`: Code coverage reporting (optional, public repos work without)
+
+### Future (not currently used):
+- Code signing certificates for macOS/Windows
+- Package registry tokens
+- Deployment credentials
+
+## 🎯 Best Practices Implemented
+
+Following Tabby and industry standards:
+
+1. **Fail-Fast Linting**: Quick feedback on code quality
+2. **Parallel Execution**: Independent jobs run concurrently
+3. **Smart Caching**: Rust compilation cache across runs
+4. **Cross-Platform Support**: Test on all target platforms
+5. **Artifact Retention**: 30 days for nightly, permanent for releases
+6. **Security First**: Automated vulnerability scanning
+7. **Comprehensive Testing**: Unit, integration, and smoke tests
+8. **Documentation**: Auto-generated and deployed docs
+
+## 📝 Maintenance Notes
+
+### Updating Workflow Dependencies
+
+Actions are pinned to major versions (e.g., `@v4`). Update regularly:
+
+```bash
+# Check for outdated actions
+gh actions list-outdated
+
+# Update manually in workflow files
+# Or use Dependabot to automate (recommended)
+```
+
+### Adding New Platforms
+
+1. Add to matrix in `release.yml`, `nightly.yml`, and `ci.yml`
+2. Update platform table in this README
+3. Test thoroughly with manual workflow dispatch
+4. Update documentation in main README.md
+
+### Modifying Build Process
+
+- Keep `ci.yml` and `release.yml` build steps in sync
+- Test changes with `workflow_dispatch` first
+- Monitor build times and optimize caching
+- Update artifact names if changing versioning scheme
+
+## 🆘 Troubleshooting
+
+### Build Failures
+
+**Rust compilation errors**:
+- Check `Cargo.lock` is committed
+- Verify dependencies compile on target platform
+- Review cache usage (may need cache-busting)
+
+**Cross-compilation issues**:
+- Ensure `cross` tool is properly installed
+- Check target triple is correct
+- Review ARM toolchain availability
+
+### Artifact Upload Failures
+
+**Size limits**:
+- GitHub has artifact size limits
+- Strip binaries to reduce size
+- Compress appropriately
+
+**Permission errors**:
+- Verify `contents: write` permission
+- Check repository settings allow Actions
+- Ensure GitHub token has necessary scopes
+
+### Workflow Sync Issues
+
+**When workflows don't trigger**:
+- Verify branch protection rules
+- Check workflow file syntax with `yamllint`
+- Review repository Actions settings
+- Ensure `.github/workflows/` path is correct
+
+## 🔗 Related Resources
+
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [Rust CI/CD Best Practices](https://doc.rust-lang.org/cargo/guide/continuous-integration.html)
+- [Tabby Terminal Workflows](https://github.com/Eugeny/tabby/tree/master/.github/workflows) (inspiration)
+- [Cross-compilation Guide](https://rust-lang.github.io/rustup/cross-compilation.html)
+- [nightly.link Documentation](https://nightly.link/)
+
+---
+
+**Note**: This workflow setup is inspired by and adapts patterns from the [Tabby Terminal](https://github.com/Eugeny/tabby) project, which has one of the most comprehensive CI/CD setups for cross-platform Rust applications. The workflow system has been optimized from 4 separate workflows to 3 focused, efficient workflows.
 
 ## 🔄 Workflows Overview
 

@@ -16,13 +16,15 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Fast checks that run in parallel
-  checks:
-    name: Code Quality Checks
+  # Fast linting checks
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -40,27 +42,11 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Check documentation
-        run: cargo doc --no-deps --document-private-items
-        env:
-          RUSTDOCFLAGS: -D warnings
-
-  # Cross-platform testing matrix
-  test:
-    name: Test - ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            run-integration: true
-          - os: macos-latest
-            run-integration: true
-          - os: windows-latest
-            run-integration: false
-
+  # Code quality checks that run in parallel
+  checks:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    needs: lint
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -71,27 +57,76 @@ jobs:
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.os }}
+          cache-on-failure: true
+
+      - name: Check documentation
+        run: cargo doc --no-deps --document-private-items
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  # Cross-platform testing matrix
+  test:
+    name: Test - ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.os }}
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux (x86_64)
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            run-integration: true
+          - name: macOS (Apple Silicon)
+            os: macos-latest
+            target: aarch64-apple-darwin
+            run-integration: true
+          - name: macOS (Intel)
+            os: macos-latest
+            target: x86_64-apple-darwin
+            run-integration: true
+          - name: Windows (x86_64)
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            run-integration: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform.target }}
           cache-on-failure: true
 
       - name: Build
-        run: cargo build --verbose
+        run: cargo build --verbose --target ${{ matrix.platform.target }}
 
       - name: Run unit tests
-        run: cargo test --verbose
+        run: cargo test --verbose --target ${{ matrix.platform.target }}
 
       - name: Build release binary
-        run: cargo build --release --verbose
+        run: cargo build --release --verbose --target ${{ matrix.platform.target }}
 
       - name: Run integration tests
-        if: matrix.run-integration
+        if: matrix.platform.run-integration
         shell: bash
         run: |
-          export PATH="$PWD/target/release:$PATH"
-          
-          # Smoke tests
-          jcvm --version
-          jcvm --help
+          if [ "${{ matrix.platform.os }}" = "windows-latest" ]; then
+            export PATH="$PWD/target/${{ matrix.platform.target }}/release:$PATH"
+            jcvm.exe --version
+            jcvm.exe --help
+          else
+            export PATH="$PWD/target/${{ matrix.platform.target }}/release:$PATH"
+            jcvm --version
+            jcvm --help
+          fi
           
           # Run integration test scripts if they exist
           for script in scripts/test-*.sh; do
@@ -100,6 +135,15 @@ jobs:
               "$script" || echo "⚠️ Integration test $script failed (non-blocking)"
             fi
           done
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failures-${{ matrix.platform.target }}
+          path: |
+            target/${{ matrix.platform.target }}/debug/
+            target/${{ matrix.platform.target }}/release/
 
   # Security audit - runs in parallel, allowed to fail
   security:
@@ -144,7 +188,8 @@ jobs:
         with:
           files: ./cobertura.xml
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   # Final check - all required jobs must pass
   ci-success:
